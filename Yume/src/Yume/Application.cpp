@@ -1,6 +1,7 @@
 #include "Application.h"
 
-namespace Yume {
+namespace Yume 
+{
 
 	Application::Application() 
 	{
