@@ -6,7 +6,7 @@ int main(int argc, char** argv)
 {	
 	Yume::Log::init();
 
-	YM_INFO("Yume logger initialized.");
+	YM_INFO("Yume Logger initialized.");
 	YM_INFO("Yume Engine initialized.");
 
 	auto app = Yume::createApplication();
