@@ -1,3 +1,4 @@
+#include "ympch.h"
 #include "Application.h"
 
 namespace Yume 

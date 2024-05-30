@@ -20,6 +20,9 @@ project "Yume"
     targetdir("bin/" .. outputdir .. "/%{prj.name}")
     objdir("bin-int/" .. outputdir .. "/%{prj.name}")
 
+    pchheader "ympch.h"
+    pchsource "%{prj.name}/src/ympch.cpp"
+
     files 
     {
         "%{prj.name}/src/**.h",
@@ -45,7 +48,7 @@ project "Yume"
 
         postbuildcommands
         {
-            ("{COPYFILE} %{cfg.buildtarget.relpath} \"../bin/" .. outputdir .. "/Sandbox\"")
+            ("{COPYFILE} %{cfg.buildtarget.relpath} \"../bin/" .. outputdir .. "/Sandbox/\"")
         }
 
     filter "configurations:Debug"
@@ -91,9 +94,9 @@ project "Sandbox"
         staticruntime "Off"
         systemversion "latest"
 
-        prebuildcommands
+        defines
         {
-            ("{COPYFILE} \"../bin/" .. outputdir .. "/Yume/Yume.dll\" " .. "%{cfg.targetdir}")
+            "YM_PLATFORM_WINDOWS"
         }
 
     filter "configurations:Debug"
