@@ -43,6 +43,11 @@ project "Yume"
             "YM_BUILD_DLL"
         }
 
+        postbuildcommands
+        {
+            ("{COPYFILE} %{cfg.buildtarget.relpath} \"../bin/" .. outputdir .. "/Sandbox\"")
+        }
+
     filter "configurations:Debug"
         defines "YM_DEBUG"
         symbols "On"
@@ -88,7 +93,7 @@ project "Sandbox"
 
         prebuildcommands
         {
-            ("{COPYFILE} ../bin/" .. outputdir .. "/Yume/Yume.dll " .. "%{cfg.targetdir}")
+            ("{COPYFILE} \"../bin/" .. outputdir .. "/Yume/Yume.dll\" " .. "%{cfg.targetdir}")
         }
 
     filter "configurations:Debug"
