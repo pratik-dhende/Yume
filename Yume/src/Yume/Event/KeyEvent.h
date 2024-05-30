@@ -1,5 +1,6 @@
 #pragma once
 
+#include <sstream>
 #include "Event.h"
 
 namespace Yume
@@ -9,11 +10,12 @@ namespace Yume
 	public:
 		EVENT_CLASS_CATEGORY(toUType(EventCategory::Keyboard) | toUType(EventCategory::Input))
 
-		inline int getKeyCode() const noexcept { return m_keyCode; };
+		int getKeyCode() const noexcept { return m_keyCode; };
 
 	protected:
 		KeyEvent(const int keyCode)
-			: m_keyCode(keyCode) { }
+			: m_keyCode(keyCode) 
+		{ }
 
 		int m_keyCode;
 	};
@@ -24,13 +26,16 @@ namespace Yume
 		EVENT_CLASS_TYPE(KeyPressed)
 
 		KeyPressedEvent(const int keyCode, const bool isRepeat)
-			: KeyEvent(keyCode), m_isRepeat(isRepeat) { }
+			: KeyEvent(keyCode), m_isRepeat(isRepeat) 
+		{ }
 
-		inline bool isRepeat() const noexcept{ return m_isRepeat; }
+		bool isRepeat() const noexcept{ return m_isRepeat; }
 
-		std::string toString() const noexcept override
-		{
-			return "KeyPressedEvent: " + std::to_string(m_keyCode) + " (repeat = " + std::to_string(m_isRepeat) + ")";
+		std::string toString() const override
+		{	
+			std::stringstream ss;
+			ss << "KeyPressedEvent: " << m_keyCode << " (repeat = " << m_isRepeat << ")";
+			return ss.str();
 		}
 
 	private:
@@ -43,11 +48,14 @@ namespace Yume
 		EVENT_CLASS_TYPE(KeyReleased)
 
 		KeyReleasedEvent(const int keyCode)
-			: KeyEvent(keyCode) { }
+			: KeyEvent(keyCode) 
+		{ }
 
-		std::string toString()
-		{
-			return "KeyReleasedEvent: " + std::to_string(m_keyCode);
+		std::string toString() const override
+		{	
+			std::stringstream ss;
+			ss << "KeyReleasedEvent: " << m_keyCode;
+			return ss.str();
 		}
 	};
 }

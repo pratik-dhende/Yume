@@ -12,8 +12,8 @@ namespace Yume {
 	public:
 		static void init();
 
-		inline static std::shared_ptr<spdlog::logger>& getYMLogger() { return m_ymLogger; }
-		inline static std::shared_ptr<spdlog::logger>& getAppLogger() { return m_appLogger; }
+		static std::shared_ptr<spdlog::logger>& getYMLogger() { return m_ymLogger; }
+		static std::shared_ptr<spdlog::logger>& getAppLogger() { return m_appLogger; }
 
 	private:
 		static std::shared_ptr<spdlog::logger> m_ymLogger;
