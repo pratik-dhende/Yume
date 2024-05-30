@@ -1,8 +1,5 @@
 #pragma once
 
-#include <string>
-#include <functional>
-
 #include "Yume/API.h"
 #include "Yume/Utility/Type.h"
 
