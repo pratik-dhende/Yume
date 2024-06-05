@@ -1,8 +1,8 @@
 #pragma once
 
-extern Yume::Application* Yume::createApplication();
+extern std::unique_ptr<Yume::Application> Yume::createApplication();
 
-int main(int argc, char** argv) 
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 {	
 	Yume::Log::init();
 
@@ -10,8 +10,7 @@ int main(int argc, char** argv)
 	YM_INFO("Yume Engine initialized.");
 
 	auto app = Yume::createApplication();
-	app->run();
-	delete app;
+	app->run(nCmdShow);
 
 	return 0;
 }

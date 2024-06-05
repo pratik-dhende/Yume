@@ -6,6 +6,11 @@
 	#else
 		#define	YM_API __declspec(dllimport)
 	#endif
+
+	// Constants
+	#include<string>
+	const std::wstring YM_DLL_FILE_NAME = L"Yume.dll";
+	const std::wstring YM_ENGINE_NAME = L"Yume";
 #else
 	#error Yume only supports Windows!
 #endif
