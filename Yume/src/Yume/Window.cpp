@@ -37,23 +37,19 @@ namespace Yume
 		const std::wstring className = L"Window";
 		const HINSTANCE hDllInstance = GetModuleHandleW(YM_DLL_FILE_NAME.c_str());
 
-		WNDCLASSW wc{};
-		wc.style = CS_HREDRAW | CS_VREDRAW;
-		wc.lpfnWndProc = handleMessage;
-		wc.cbClsExtra = 0;
-		wc.cbWndExtra = 0;
-		wc.hInstance = hDllInstance;
-		wc.hIcon = LoadIcon(0, IDI_APPLICATION);
-		wc.hCursor = LoadCursor(0, IDC_ARROW);
-		wc.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH);
-		wc.lpszMenuName = 0;
-		wc.lpszClassName = className.c_str();
+		WNDCLASSW windowClass{};
+		windowClass.style = CS_HREDRAW | CS_VREDRAW;
+		windowClass.lpfnWndProc = handleMessage;
+		windowClass.cbClsExtra = 0;
+		windowClass.cbWndExtra = 0;
+		windowClass.hInstance = hDllInstance;
+		windowClass.hIcon = LoadIcon(0, IDI_APPLICATION);
+		windowClass.hCursor = LoadCursor(0, IDC_ARROW);
+		windowClass.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH);
+		windowClass.lpszMenuName = 0;
+		windowClass.lpszClassName = className.c_str();
 
-		RegisterClassW(&wc);
-		if (RegisterClassW(&wc))
-		{
-			int b = 2 + 3;
-		}
+		RegisterClassW(&windowClass);
 
 		m_hwnd = CreateWindowW(
 			className.c_str(),
