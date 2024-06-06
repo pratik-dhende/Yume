@@ -1,6 +1,6 @@
 #pragma once
 
-#include "API.h"
+#include "Core.h"
 
 namespace Yume {
 
@@ -10,10 +10,9 @@ namespace Yume {
 		Application();
 		virtual ~Application();
 
-		void run();
+		void run(int nCmdShow);
 	};
 
-	Application* createApplication();
-
+	std::unique_ptr<Application> createApplication();
 }
 

@@ -12,6 +12,6 @@ public:
 	}
 };
 
-Yume::Application* Yume::createApplication() {
-	return new Sandbox();
+std::unique_ptr<Yume::Application> Yume::createApplication() {
+	return std::make_unique<Sandbox>();
 }

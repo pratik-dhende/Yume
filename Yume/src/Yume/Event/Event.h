@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Yume/API.h"
+#include "Yume/Core.h"
 #include "Yume/Utility/Type.h"
 
 #define SET_BIT(x) 1 << x
