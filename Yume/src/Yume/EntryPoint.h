@@ -6,8 +6,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 {	
 	Yume::Log::init();
 
-	YM_INFO("Yume Logger initialized.");
-	YM_INFO("Yume Engine initialized.");
+	YM_CORE_INFO("Yume Logger initialized.");
+	YM_CORE_INFO("Yume Engine initialized.");
 
 	auto app = Yume::createApplication();
 	app->run(nCmdShow);

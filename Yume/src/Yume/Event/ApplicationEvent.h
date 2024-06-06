@@ -2,6 +2,8 @@
 
 #include "Event.h"
 
+#include <sstream>
+
 namespace Yume
 {
 	class YM_API ApplicationEvent : public Event

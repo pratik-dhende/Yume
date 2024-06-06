@@ -2,6 +2,8 @@
 
 #include "Event.h"
 
+#include <sstream>
+
 namespace Yume
 {	
 	class YM_API MouseEvent : public Event

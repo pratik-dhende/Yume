@@ -34,6 +34,7 @@ namespace Yume
 
 	void Window::createWindow(const std::wstring& title)
 	{	
+		// TODO: Add error checks
 		const std::wstring className = L"Window";
 		const HINSTANCE hDllInstance = GetModuleHandleW(YM_DLL_FILE_NAME.c_str());
 
