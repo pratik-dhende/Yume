@@ -7,6 +7,8 @@
 		#define	YM_API __declspec(dllimport)
 	#endif
 
+	#include "Utility/Utility.h"
+
 	// Constants
 	#include<string>
 	const std::wstring YM_DLL_FILE_NAME = L"Yume.dll";

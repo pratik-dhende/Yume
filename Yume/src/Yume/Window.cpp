@@ -10,6 +10,10 @@ namespace Yume
 		createWindow(title);
 	}
 
+	Window::Window(const std::wstring& title, const unsigned int width, const unsigned int height)
+		: m_width(width), m_height(height)
+	{ }
+
 	LRESULT CALLBACK Window::handleMessage(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{
 		switch (uMsg)
@@ -34,9 +38,10 @@ namespace Yume
 
 	void Window::createWindow(const std::wstring& title)
 	{	
-		// TODO: Add error checks
 		const std::wstring className = L"Window";
 		const HINSTANCE hDllInstance = GetModuleHandleW(YM_DLL_FILE_NAME.c_str());
+
+		YM_THROW_IF_FAILED_WIN32_EXCEPTION(hDllInstance);
 
 		WNDCLASSW windowClass{};
 		windowClass.style = CS_HREDRAW | CS_VREDRAW;
@@ -50,7 +55,7 @@ namespace Yume
 		windowClass.lpszMenuName = 0;
 		windowClass.lpszClassName = className.c_str();
 
-		RegisterClassW(&windowClass);
+		YM_THROW_IF_FAILED_WIN32_EXCEPTION(RegisterClassW(&windowClass));
 
 		m_hwnd = CreateWindowW(
 			className.c_str(),
@@ -64,6 +69,8 @@ namespace Yume
 			hDllInstance,
 			nullptr
 		);
+
+		YM_THROW_IF_FAILED_WIN32_EXCEPTION(m_hwnd);
 	}
 }
 

@@ -17,6 +17,7 @@
 #include <type_traits>
 
 #include <comdef.h>
+#include <system_error>
 
 #ifdef YM_PLATFORM_WINDOWS
 	#include <windows.h>
