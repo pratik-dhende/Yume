@@ -3,6 +3,7 @@
 #include "Core.h"
 #include "Application.h"
 #include "Window.h"
+#include "D3D12Renderer.h"
 
 namespace Yume 
 {
@@ -23,6 +24,8 @@ namespace Yume
 		{
 			Window window(YM_ENGINE_NAME.c_str());
 			window.show(nCmdShow);
+
+			D3D12Renderer renderer;
 
 			MSG msg{};
 			while (GetMessageW(&msg, window.getHandle(), NULL, NULL) > 0)

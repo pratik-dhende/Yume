@@ -18,6 +18,10 @@
 
 #include <comdef.h>
 #include <system_error>
+#include <wrl.h>
+
+#include <d3d12.h>
+#include <dxgi1_6.h>
 
 #ifdef YM_PLATFORM_WINDOWS
 	#include <windows.h>
