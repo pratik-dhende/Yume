@@ -52,7 +52,11 @@ project "Yume"
         }
 
     filter "configurations:Debug"
-        defines "YM_DEBUG"
+        defines 
+        {   
+            "YM_DEBUG",
+            "YM_ENABLE_ASSERTS",
+        }
         symbols "On"
 
     filter "configurations:Stage"
@@ -66,7 +70,6 @@ project "Yume"
 
 project "Sandbox"
     location "Sandbox"
-    kind "ConsoleApp"
     language "C++"
 
     targetdir("bin/" .. outputdir .. "/%{prj.name}")
@@ -100,13 +103,16 @@ project "Sandbox"
         }
 
     filter "configurations:Debug"
+        kind "ConsoleApp"
         defines "YM_DEBUG"
         symbols "On"
 
     filter "configurations:Stage"
+        kind "WindowedApp"
         defines "YM_STAGE"
         optimize "On"
     
     filter "configurations:Release"
+        kind "WindowedApp"
         defines "YM_RELEASE"
         optimize "On"

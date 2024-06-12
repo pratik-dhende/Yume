@@ -22,7 +22,7 @@ namespace Yume
 	{
 		try
 		{
-			Window window(YM_ENGINE_NAME.c_str());
+			Window window(YM_ENGINE_NAME.c_str(), 1280, 720);
 			window.show(nCmdShow);
 
 			D3D12Renderer renderer;

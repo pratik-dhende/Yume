@@ -18,13 +18,14 @@ namespace Yume
     }
 
     std::wstring ansiToWString(const std::string& str);
+    std::string wStringToAnsi(const std::wstring& wstr);
 
     // Exception utitlies
 
     class Exception
     {
     public:
-        Exception(const std::wstring& filename, const unsigned int lineNumber)
+        Exception(const std::wstring& filename, const int lineNumber)
             : m_filename(filename), m_lineNumber(lineNumber)
         { }
 
@@ -32,13 +33,13 @@ namespace Yume
 
     protected:
         std::wstring m_filename;
-        unsigned int m_lineNumber;
+        int m_lineNumber;
     };
 
     class Win32Exception : public Exception
     {
     public:
-        Win32Exception(const std::wstring& filename, const unsigned int lineNumber)
+        Win32Exception(const std::wstring& filename, const int lineNumber)
             : Exception(filename, lineNumber)
         { }
 
@@ -58,7 +59,7 @@ namespace Yume
     class DXException : public Exception
     {
     public:
-        DXException(const HRESULT hr, const std::wstring& filename, const unsigned int lineNumber)
+        DXException(const HRESULT hr, const std::wstring& filename, const int lineNumber)
             : Exception(filename, lineNumber), m_errorCode(hr)
         {}
 

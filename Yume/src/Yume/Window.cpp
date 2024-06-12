@@ -10,9 +10,12 @@ namespace Yume
 		createWindow(title);
 	}
 
-	Window::Window(const std::wstring& title, const unsigned int width, const unsigned int height)
+	Window::Window(const std::wstring& title, const int width, const int height)
 		: m_width(width), m_height(height)
-	{ }
+	{	
+		// TODO: Add minimum window size constraint
+		createWindow(title);
+	}
 
 	LRESULT CALLBACK Window::handleMessage(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{
