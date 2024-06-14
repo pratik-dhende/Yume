@@ -4,12 +4,12 @@
 
 namespace Yume
 {	
-	D3D12Renderer::D3D12Renderer()
+	D3D12Renderer::D3D12Renderer(const ID3D12Window& window)
 	{
-		init();
+		init(window);
 	}
 
-	void D3D12Renderer::init()
+	void D3D12Renderer::init(const ID3D12Window& window)
 	{
 		// TODO: Research on different versions of D3D12 functions
 
@@ -57,6 +57,33 @@ namespace Yume
 #ifdef YM_DEBUG
 		D3D12Renderer::logAdapters();
 #endif	
+		createCommandObjects();
+		createSwapChain(window);
+	}
+
+	void D3D12Renderer::createCommandObjects()
+	{
+		D3D12_COMMAND_QUEUE_DESC commandQueueDesc{};
+		commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+		commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&m_commandQueue)));
+
+		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator)));
+
+		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_commandList)));
+
+		// Start off in a closed state. This is because the first time we refer to the command list we will Reset it, and it needs to be closed before calling Reset.
+		m_commandList->Close();
+	}
+
+	void D3D12Renderer::createSwapChain(const ID3D12Window& window)
+	{
+		// Release the previous swapchain we will be recreating.
+		m_swapChain.Reset();
+
+		DXGI_SWAP_CHAIN_DESC swapChainDesc;
+		swapChainDesc.BufferDesc.Width = window.getWidth();
+		swapChainDesc.BufferDesc.Height = window.getHeight();
 	}
 
 	void D3D12Renderer::logAdapters()
@@ -88,7 +115,29 @@ namespace Yume
 
 			YM_CORE_INFO("Output: {0}", wStringToAnsi(adapterOutputDesc.DeviceName));
 
+			logOutputDisplayModes(adapterOutput, m_backBufferFormat);
+
 			++adapterOutputIndex;
+		}
+	}
+
+	void D3D12Renderer::logOutputDisplayModes(const Microsoft::WRL::ComPtr<IDXGIOutput> output, const DXGI_FORMAT format)
+	{
+		UINT displayModesCount = 0;
+		UINT flags = 0;
+
+		// Call with nullptr to get list count
+		output->GetDisplayModeList(format, flags, &displayModesCount, nullptr);
+
+		std::vector<DXGI_MODE_DESC> displayModes(displayModesCount);
+		output->GetDisplayModeList(format, flags, &displayModesCount, displayModes.data());
+
+		for (auto& displayMode : displayModes)
+		{
+			UINT refreshRateNumerator = displayMode.RefreshRate.Numerator;
+			UINT refreshRateDenominator = displayMode.RefreshRate.Denominator;
+
+			YM_CORE_INFO("DisplayMode: Width - {0}, Height - {1}, Refresh Rate - {2}/{3}", displayMode.Width, displayMode.Height, displayMode.RefreshRate.Numerator, displayMode.RefreshRate.Denominator);
 		}
 	}
 }

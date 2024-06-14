@@ -25,7 +25,7 @@ namespace Yume
 			Window window(YM_ENGINE_NAME.c_str(), 1280, 720);
 			window.show(nCmdShow);
 
-			D3D12Renderer renderer;
+			D3D12Renderer renderer(window.m_d3d12Port);
 
 			MSG msg{};
 			while (GetMessageW(&msg, window.getHandle(), NULL, NULL) > 0)

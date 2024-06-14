@@ -5,13 +5,23 @@
 
 namespace Yume
 {	
-	Window::Window(const std::wstring& title)
+	int Window::D3D12Port::getWidth() const noexcept
+	{
+		return m_window.m_width;
+	}
+
+	int Window::D3D12Port::getHeight() const noexcept
+	{
+		return m_window.m_height;
+	}
+
+	Window::Window(const std::wstring& title) : m_d3d12Port(*this)
 	{
 		createWindow(title);
 	}
 
 	Window::Window(const std::wstring& title, const int width, const int height)
-		: m_width(width), m_height(height)
+		: m_width(width), m_height(height), m_d3d12Port(*this)
 	{	
 		// TODO: Add minimum window size constraint
 		createWindow(title);
