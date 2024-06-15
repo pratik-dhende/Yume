@@ -15,6 +15,11 @@ namespace Yume
 		return m_window.m_height;
 	}
 
+	HWND Window::D3D12Port::getHandle() const noexcept
+	{
+		return m_window.m_hwnd;
+	}
+
 	Window::Window(const std::wstring& title) : m_d3d12Port(*this)
 	{
 		createWindow(title);

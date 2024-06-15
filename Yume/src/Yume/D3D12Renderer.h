@@ -15,10 +15,14 @@ namespace Yume
 	public:
 		virtual int getWidth() const noexcept = 0;
 		virtual int getHeight() const noexcept = 0;
+		virtual HWND getHandle() const noexcept = 0;
 	};
 
 	class D3D12Renderer
-	{
+	{	
+	private:
+		static const int s_swapChainBufferCount = 2;
+
 	public:
 		D3D12Renderer(const ID3D12Window& window);
 
@@ -26,10 +30,10 @@ namespace Yume
 		void init(const ID3D12Window& window);
 		void createCommandObjects();
 		void createSwapChain(const ID3D12Window& window);
-		void createRtvAndDsvDescriptionHeaps();
-		void logAdapters();
-		void logAdapterOutputs(const Microsoft::WRL::ComPtr<IDXGIAdapter> adapter);
-		void logOutputDisplayModes(const Microsoft::WRL::ComPtr<IDXGIOutput> output, const DXGI_FORMAT format);
+		void createRtvAndDsvDescriptorHeaps();
+		void logAdapters() const;
+		void logAdapterOutputs(const Microsoft::WRL::ComPtr<IDXGIAdapter>& adapter) const;
+		void logOutputDisplayModes(const Microsoft::WRL::ComPtr<IDXGIOutput>& output, const DXGI_FORMAT& format) const;
 
 	private:
 		Microsoft::WRL::ComPtr<IDXGIFactory4> m_factory;
@@ -41,6 +45,8 @@ namespace Yume
 		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> m_commandList;
 
 		Microsoft::WRL::ComPtr<IDXGISwapChain> m_swapChain;
+		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_rtvDescriptorHeap;
+		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_dsvDescriptorHeap;
 
 		UINT m_rtvDescriptorSize = 0;
 		UINT m_dsvDescriptorSize = 0;
@@ -48,6 +54,8 @@ namespace Yume
 		UINT m_4xMsaaQuality = 0;
 
 		DXGI_FORMAT m_backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+		bool m_4xMsaaEnabled = false;
 		
 	};
 }

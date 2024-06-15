@@ -20,6 +20,7 @@ namespace Yume
 
 			int getWidth() const noexcept override;
 			int getHeight() const noexcept override;
+			HWND getHandle() const noexcept override;
 
 		private:
 			const Window& m_window;

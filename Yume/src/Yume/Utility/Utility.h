@@ -80,6 +80,7 @@ namespace Yume
     };
 }
 
+// TODO: Move these exceptions to their own namespaces
 #ifndef YM_THROW_IF_FAILED_WIN32_EXCEPTION
 #define YM_THROW_IF_FAILED_WIN32_EXCEPTION(result)                    \
 {                                                                     \

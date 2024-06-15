@@ -16,24 +16,24 @@ namespace Yume
 #ifdef YM_DEBUG 
 		{
 			Microsoft::WRL::ComPtr<ID3D12Debug> debugController;
-			YM_THROW_IF_FAILED_DX_EXCEPTION(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
+			YM_THROW_IF_FAILED_DX_EXCEPTION(D3D12GetDebugInterface(IID_PPV_ARGS(debugController.GetAddressOf())));
 			debugController->EnableDebugLayer();
 		}
 #endif	
-		YM_THROW_IF_FAILED_DX_EXCEPTION(CreateDXGIFactory1(IID_PPV_ARGS(&m_factory)));
+		YM_THROW_IF_FAILED_DX_EXCEPTION(CreateDXGIFactory1(IID_PPV_ARGS(m_factory.ReleaseAndGetAddressOf())));
 
 		// Use the primary adapter (TODO: Search for NVIDIA driver and use it)
-		const HRESULT primaryAdapterResult = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device));
+		const HRESULT primaryAdapterResult = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
 
 		if (FAILED(primaryAdapterResult))
 		{	
 			// Fallback to WARP if no adapter
 			Microsoft::WRL::ComPtr<IDXGIAdapter> warpAdapter;
-			YM_THROW_IF_FAILED_DX_EXCEPTION(m_factory->EnumWarpAdapter(IID_PPV_ARGS(&warpAdapter)));
-			YM_THROW_IF_FAILED_DX_EXCEPTION(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device)));
+			YM_THROW_IF_FAILED_DX_EXCEPTION(m_factory->EnumWarpAdapter(IID_PPV_ARGS(warpAdapter.ReleaseAndGetAddressOf())));
+			YM_THROW_IF_FAILED_DX_EXCEPTION(D3D12CreateDevice(warpAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf())));
 		}
 
-		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
+		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.ReleaseAndGetAddressOf())));
 
 		m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 		m_dsvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
@@ -59,6 +59,7 @@ namespace Yume
 #endif	
 		createCommandObjects();
 		createSwapChain(window);
+		createRtvAndDsvDescriptorHeaps();
 	}
 
 	void D3D12Renderer::createCommandObjects()
@@ -66,11 +67,11 @@ namespace Yume
 		D3D12_COMMAND_QUEUE_DESC commandQueueDesc{};
 		commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 		commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&m_commandQueue)));
+		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(m_commandQueue.ReleaseAndGetAddressOf())));
 
-		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator)));
+		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(m_commandAllocator.ReleaseAndGetAddressOf())));
 
-		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), nullptr, IID_PPV_ARGS(&m_commandList)));
+		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), nullptr, IID_PPV_ARGS(m_commandList.ReleaseAndGetAddressOf())));
 
 		// Start off in a closed state. This is because the first time we refer to the command list we will Reset it, and it needs to be closed before calling Reset.
 		m_commandList->Close();
@@ -78,20 +79,53 @@ namespace Yume
 
 	void D3D12Renderer::createSwapChain(const ID3D12Window& window)
 	{
-		// Release the previous swapchain we will be recreating.
+		// Release the previous swapchain we will be recreating
+		// TODO: Remove it as we will be releasing the com ptr before passing to CreateSwapChain method.
 		m_swapChain.Reset();
 
 		DXGI_SWAP_CHAIN_DESC swapChainDesc;
 		swapChainDesc.BufferDesc.Width = window.getWidth();
 		swapChainDesc.BufferDesc.Height = window.getHeight();
+		swapChainDesc.BufferDesc.RefreshRate.Numerator = 60; // TODO: Make it modifiable.
+		swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
+		swapChainDesc.BufferDesc.Format = m_backBufferFormat;
+		swapChainDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+		swapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+		swapChainDesc.SampleDesc.Count = m_4xMsaaEnabled ? 4 : 1;
+		swapChainDesc.SampleDesc.Quality = m_4xMsaaEnabled ? m_4xMsaaQuality - 1 : 0;
+		swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		swapChainDesc.BufferCount = s_swapChainBufferCount;
+		swapChainDesc.OutputWindow = window.getHandle();
+		swapChainDesc.Windowed = true;
+		swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+		swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+
+		YM_THROW_IF_FAILED_DX_EXCEPTION(m_factory->CreateSwapChain(m_commandQueue.Get(), &swapChainDesc, m_swapChain.ReleaseAndGetAddressOf()));
 	}
 
-	void D3D12Renderer::logAdapters()
+	void D3D12Renderer::createRtvAndDsvDescriptorHeaps()
+	{
+		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
+		rtvHeapDesc.NumDescriptors = s_swapChainBufferCount;
+		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+		rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		rtvHeapDesc.NodeMask = 0;
+		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(m_rtvDescriptorHeap.ReleaseAndGetAddressOf())));
+
+		D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc;
+		dsvHeapDesc.NumDescriptors = 1;
+		dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+		dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		dsvHeapDesc.NodeMask = 0;
+		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(m_dsvDescriptorHeap.ReleaseAndGetAddressOf())));
+	}
+
+	void D3D12Renderer::logAdapters() const
 	{	
 		UINT adapterIndex = 0;
 		Microsoft::WRL::ComPtr<IDXGIAdapter> adapter = nullptr;
 
-		while (m_factory->EnumAdapters(adapterIndex, &adapter) != DXGI_ERROR_NOT_FOUND)
+		while (m_factory->EnumAdapters(adapterIndex, adapter.ReleaseAndGetAddressOf()) != DXGI_ERROR_NOT_FOUND)
 		{
 			DXGI_ADAPTER_DESC adapterDesc;
 			adapter->GetDesc(&adapterDesc);
@@ -103,12 +137,12 @@ namespace Yume
 		}
 	}
 
-	void D3D12Renderer::logAdapterOutputs(const Microsoft::WRL::ComPtr<IDXGIAdapter> adapter)
+	void D3D12Renderer::logAdapterOutputs(const Microsoft::WRL::ComPtr<IDXGIAdapter>& adapter) const
 	{
 		UINT adapterOutputIndex = 0;
 		Microsoft::WRL::ComPtr<IDXGIOutput> adapterOutput = nullptr;
 
-		while (adapter->EnumOutputs(adapterOutputIndex, &adapterOutput) != DXGI_ERROR_NOT_FOUND)
+		while (adapter->EnumOutputs(adapterOutputIndex, adapterOutput.ReleaseAndGetAddressOf()) != DXGI_ERROR_NOT_FOUND)
 		{
 			DXGI_OUTPUT_DESC adapterOutputDesc;
 			adapterOutput->GetDesc(&adapterOutputDesc);
@@ -121,7 +155,7 @@ namespace Yume
 		}
 	}
 
-	void D3D12Renderer::logOutputDisplayModes(const Microsoft::WRL::ComPtr<IDXGIOutput> output, const DXGI_FORMAT format)
+	void D3D12Renderer::logOutputDisplayModes(const Microsoft::WRL::ComPtr<IDXGIOutput>& output, const DXGI_FORMAT& format) const
 	{
 		UINT displayModesCount = 0;
 		UINT flags = 0;
