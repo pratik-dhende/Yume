@@ -2,6 +2,8 @@
 
 #include "Event.h"
 
+#include <sstream>
+
 namespace Yume
 {
 	class YM_API ApplicationEvent : public Event
@@ -18,12 +20,12 @@ namespace Yume
 	public:
 		EVENT_CLASS_TYPE(WindowResize)
 
-		WindowResizeEvent(const unsigned int width, const unsigned int height)
+		WindowResizeEvent(const int width, const int height)
 			: m_width(width), m_height(height)
 		{ }
 
-		unsigned int getWidth() const noexcept { return m_width; }
-		unsigned int getHeight() const noexcept { return m_height; }
+		int getWidth() const noexcept { return m_width; }
+		int getHeight() const noexcept { return m_height; }
 
 		std::string toString() const override
 		{
@@ -33,8 +35,8 @@ namespace Yume
 		}
 
 	private:
-		unsigned int m_width;
-		unsigned int m_height;
+		int m_width;
+		int m_height;
 	};
 
 	class YM_API WindowCloseEvent : public ApplicationEvent

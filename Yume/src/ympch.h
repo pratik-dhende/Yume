@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Yume/Log.h"
+
 #include <iostream>
 #include <memory>
 #include <utility>
@@ -14,6 +16,12 @@
 
 #include <type_traits>
 
+#include <comdef.h>
+#include <system_error>
+#include <wrl/client.h>
+
+#include <d3d12.h>
+#include <dxgi1_6.h>
 
 #ifdef YM_PLATFORM_WINDOWS
 	#include <windows.h>

@@ -5,8 +5,30 @@
 
 namespace Yume
 {	
-	Window::Window(const std::wstring& title)
+	int Window::D3D12Port::getWidth() const noexcept
 	{
+		return m_window.m_width;
+	}
+
+	int Window::D3D12Port::getHeight() const noexcept
+	{
+		return m_window.m_height;
+	}
+
+	HWND Window::D3D12Port::getHandle() const noexcept
+	{
+		return m_window.m_hwnd;
+	}
+
+	Window::Window(const std::wstring& title) : m_d3d12Port(*this)
+	{
+		createWindow(title);
+	}
+
+	Window::Window(const std::wstring& title, const int width, const int height)
+		: m_width(width), m_height(height), m_d3d12Port(*this)
+	{	
+		// TODO: Add minimum window size constraint
 		createWindow(title);
 	}
 
@@ -37,6 +59,8 @@ namespace Yume
 		const std::wstring className = L"Window";
 		const HINSTANCE hDllInstance = GetModuleHandleW(YM_DLL_FILE_NAME.c_str());
 
+		YM_THROW_IF_FAILED_WIN32_EXCEPTION(hDllInstance);
+
 		WNDCLASSW windowClass{};
 		windowClass.style = CS_HREDRAW | CS_VREDRAW;
 		windowClass.lpfnWndProc = handleMessage;
@@ -49,7 +73,7 @@ namespace Yume
 		windowClass.lpszMenuName = 0;
 		windowClass.lpszClassName = className.c_str();
 
-		RegisterClassW(&windowClass);
+		YM_THROW_IF_FAILED_WIN32_EXCEPTION(RegisterClassW(&windowClass));
 
 		m_hwnd = CreateWindowW(
 			className.c_str(),
@@ -63,6 +87,8 @@ namespace Yume
 			hDllInstance,
 			nullptr
 		);
+
+		YM_THROW_IF_FAILED_WIN32_EXCEPTION(m_hwnd);
 	}
 }
 
