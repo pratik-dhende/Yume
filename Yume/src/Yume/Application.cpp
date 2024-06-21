@@ -21,17 +21,21 @@ namespace Yume
 	void Application::run(int nCmdShow) 
 	{
 		try
-		{
-			Window window(YM_ENGINE_NAME.c_str(), 1280, 720);
-			window.show(nCmdShow);
+		{	
+			m_window = std::make_unique<Window>(YM_ENGINE_NAME.c_str(), 1280, 720);
+			m_window->show(nCmdShow);
 
-			D3D12Renderer renderer(window.m_d3d12Port);
+			m_renderer = std::make_unique<D3D12Renderer>(m_window->m_d3d12Port);
+
+			init();
 
 			MSG msg{};
-			while (GetMessageW(&msg, window.getHandle(), NULL, NULL) > 0)
+			while (GetMessageW(&msg, m_window->getHandle(), NULL, NULL) > 0)
 			{
 				TranslateMessage(&msg);
 				DispatchMessageW(&msg);
+
+				update();
 			}
 		}
 		catch (const Exception& exception)

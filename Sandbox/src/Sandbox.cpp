@@ -10,6 +10,16 @@ public:
 	~Sandbox() {
 
 	}
+
+	void init() override
+	{
+		YM_INFO("INIT");
+	}
+
+	void update() override
+	{
+		YM_INFO("UPDATE");
+	}
 };
 
 std::unique_ptr<Yume::Application> Yume::createApplication() {
