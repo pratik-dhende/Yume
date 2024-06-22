@@ -20,6 +20,9 @@ namespace Yume
     std::wstring ansiToWString(const std::string& str);
     std::string wStringToAnsi(const std::wstring& wstr);
 
+    // Math utilities
+    UINT nextMultiple256(UINT byteSize);
+    
     // Exception utitlies
 
     class Exception
@@ -78,20 +81,21 @@ namespace Yume
     private:
         HRESULT m_errorCode;
     };
+
 }
 
 // TODO: Move these exceptions to their own namespaces
 #ifndef YM_THROW_IF_FAILED_WIN32_EXCEPTION
-#define YM_THROW_IF_FAILED_WIN32_EXCEPTION(result)                    \
-{                                                                     \
-   if (!result) { throw Win32Exception(__FILEW__, __LINE__); }        \
-}
-#endif
-
-#ifndef YM_THROW_IF_FAILED_DX_EXCEPTION
-#define YM_THROW_IF_FAILED_DX_EXCEPTION(result)                       \
-{                                                                     \
-    HRESULT hr__ = result;                                            \
-    if(FAILED(hr__)) { throw DXException(hr__, __FILEW__, __LINE__); }\
+#define YM_THROW_IF_FAILED_WIN32_EXCEPTION(result)                                  \
+{                                                                                   \
+    if (!result) { throw Win32Exception(__FILEW__, __LINE__); }                     \
+}                                                                                   
+#endif                                                                              
+                                                                                    
+#ifndef YM_THROW_IF_FAILED_DX_EXCEPTION                                             
+#define YM_THROW_IF_FAILED_DX_EXCEPTION(result)                                     \
+{                                                                                   \
+    HRESULT hr__ = result;                                                          \
+    if(FAILED(hr__)) { throw Yume::DXException(hr__, __FILEW__, __LINE__); }        \
 }
 #endif

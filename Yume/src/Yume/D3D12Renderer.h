@@ -1,6 +1,6 @@
 #pragma once
 
-#include <d3d12.h>
+#include "directx/d3dx12.h"
 #include <dxgi1_6.h>
 
 // TODO: Add to premake
@@ -26,6 +26,10 @@ namespace Yume
 	public:
 		D3D12Renderer(const ID3D12Window& window);
 
+	public:
+		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> m_commandList;
+		Microsoft::WRL::ComPtr<ID3D12Device> m_device;
+
 	private:
 		void init(const ID3D12Window& window);
 		void createCommandObjects();
@@ -37,12 +41,10 @@ namespace Yume
 
 	private:
 		Microsoft::WRL::ComPtr<IDXGIFactory4> m_factory;
-		Microsoft::WRL::ComPtr<ID3D12Device> m_device;
 		Microsoft::WRL::ComPtr<ID3D12Fence> m_fence;
 
 		Microsoft::WRL::ComPtr<ID3D12CommandQueue> m_commandQueue;
 		Microsoft::WRL::ComPtr<ID3D12CommandAllocator> m_commandAllocator;
-		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> m_commandList;
 
 		Microsoft::WRL::ComPtr<IDXGISwapChain> m_swapChain;
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_rtvDescriptorHeap;
@@ -56,6 +58,5 @@ namespace Yume
 		DXGI_FORMAT m_backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 		bool m_4xMsaaEnabled = false;
-		
 	};
 }

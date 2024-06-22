@@ -74,6 +74,7 @@ namespace Yume
 		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), nullptr, IID_PPV_ARGS(m_commandList.ReleaseAndGetAddressOf())));
 
 		// Start off in a closed state. This is because the first time we refer to the command list we will Reset it, and it needs to be closed before calling Reset.
+		// TODO: Refer to documentation for creating command list without closing it.
 		m_commandList->Close();
 	}
 

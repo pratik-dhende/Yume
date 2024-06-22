@@ -32,7 +32,8 @@ project "Yume"
     includedirs
     {
         "%{prj.name}/src",
-        "%{prj.name}/vendor/spdlog/include"
+        "%{prj.name}/vendor/spdlog/include",
+        "%{prj.name}/vendor/DirectX-Headers/include"
     }
 
     filter "system:windows"
@@ -84,6 +85,7 @@ project "Sandbox"
     includedirs
     {
         "Yume/vendor/spdlog/include",
+        "Yume/vendor/DirectX-Headers/include",
         "Yume/src"
     }
 

@@ -1,3 +1,6 @@
 [submodule "Yume/vendor/spdlog"]
 	path = Yume/vendor/spdlog
 	url = https://github.com/gabime/spdlog
+[submodule "Yume/vendor/DirectX-Headers"]
+	path = Yume/vendor/DirectX-Headers
+	url = https://github.com/microsoft/DirectX-Headers
