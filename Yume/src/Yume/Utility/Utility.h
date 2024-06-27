@@ -6,6 +6,7 @@
 #include <comdef.h>
 #include <system_error>
 #include <sstream>
+#include <DirectXMath.h>
 
 namespace Yume
 {
@@ -21,7 +22,9 @@ namespace Yume
     std::string wStringToAnsi(const std::wstring& wstr);
 
     // Math utilities
+    // TODO: Fix linker resolution for this function.
     UINT nextMultiple256(UINT byteSize);
+    DirectX::XMFLOAT4X4 identityMatrix4x4();
     
     // Exception utitlies
 

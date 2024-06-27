@@ -7,7 +7,7 @@ void Sandbox::init()
 
 	buildCbvHeap();
 	buildConstantBuffer();
-
+	buildRootSignature();
 }
 
 void Sandbox::update()
@@ -31,5 +31,36 @@ void Sandbox::buildCbvHeap()
 
 void Sandbox::buildConstantBuffer()
 {
+	m_objectConstants = std::make_unique<Yume::UploadBuffer<ObjectConstants>>(m_renderer->m_device.Get(), 1, true);
 
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
+	cbvDesc.BufferLocation = m_objectConstants->getResource()->GetGPUVirtualAddress();
+	cbvDesc.SizeInBytes = Yume::nextMultiple256(sizeof(ObjectConstants));
+
+	m_renderer->m_device->CreateConstantBufferView(&cbvDesc, m_cbvHeap->GetCPUDescriptorHandleForHeapStart());
+}
+
+void Sandbox::buildRootSignature()
+{	
+	CD3DX12_DESCRIPTOR_RANGE descTableRanges[1];
+	descTableRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+
+	CD3DX12_ROOT_PARAMETER rootParameters[1];
+	rootParameters[0].InitAsDescriptorTable(1, descTableRanges);
+
+	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(1, rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+	Microsoft::WRL::ComPtr<ID3DBlob> serializedRoot;
+	Microsoft::WRL::ComPtr<ID3DBlob> serializedRootError;
+
+	HRESULT hrSerializedRoot = D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1_0, serializedRoot.GetAddressOf(), serializedRootError.GetAddressOf());
+
+	if (serializedRootError)
+	{
+		YM_ERROR(static_cast<char*>(serializedRootError->GetBufferPointer()));
+	}
+
+	YM_THROW_IF_FAILED_DX_EXCEPTION(hrSerializedRoot);
+
+	m_renderer->m_device->CreateRootSignature(0, serializedRoot->GetBufferPointer(), serializedRoot->GetBufferSize(), IID_PPV_ARGS(m_rootSignature.ReleaseAndGetAddressOf()));
 }

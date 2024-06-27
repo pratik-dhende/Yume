@@ -25,13 +25,13 @@ namespace Yume {
 #define YM_CORE_INFO(...)			::Yume::Log::getYMLogger()->info(__VA_ARGS__)
 #define YM_CORE_WARN(...)			::Yume::Log::getYMLogger()->warn(__VA_ARGS__)
 #define YM_CORE_ERROR(...)			::Yume::Log::getYMLogger()->error(__VA_ARGS__)
-#define YM_CORE_FATAL(...)			::Yume::Log::getYMLogger()->fatal(__VA_ARGS__)
+#define YM_CORE_FATAL(...)			::Yume::Log::getYMLogger()->critical(__VA_ARGS__)
 
 // App log macros
 #define YM_TRACE(...)		::Yume::Log::getAppLogger()->trace(__VA_ARGS__)
 #define YM_INFO(...)		::Yume::Log::getAppLogger()->info(__VA_ARGS__)
 #define YM_WARN(...)		::Yume::Log::getAppLogger()->warn(__VA_ARGS__)
 #define YM_ERROR(...)		::Yume::Log::getAppLogger()->error(__VA_ARGS__)
-#define YM_FATAL(...)		::Yume::Log::getAppLogger()->fatal(__VA_ARGS__)
+#define YM_FATAL(...)		::Yume::Log::getAppLogger()->critical(__VA_ARGS__)
 
 

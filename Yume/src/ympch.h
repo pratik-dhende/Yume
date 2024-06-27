@@ -22,6 +22,7 @@
 
 #include "directx/d3dx12.h"
 #include <dxgi1_6.h>
+#include <DirectXMath.h>
 
 #ifdef YM_PLATFORM_WINDOWS
 	#include <windows.h>
