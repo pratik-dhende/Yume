@@ -27,7 +27,7 @@ namespace Yume
 			*/
 			if (m_isConstantBuffer)
 			{
-				m_elementByteSize = nextMultiple256(m_elementByteSize);
+				m_elementByteSize = Yume::nextMultiple256(m_elementByteSize);
 			}
 
 			// TODO: Why passing address of temporary doesn't work?

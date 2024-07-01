@@ -1,8 +1,6 @@
 #pragma once
 #include "Yume.h"
 #include <DirectXMath.h>
-#include <Yume/Utility/Utility.h>
-#include <Yume/UploadBuffer.h>
 
 class Sandbox : public Yume::Application
 {

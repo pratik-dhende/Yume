@@ -18,7 +18,7 @@ namespace Yume
 		virtual HWND getHandle() const noexcept = 0;
 	};
 
-	class D3D12Renderer
+	class YM_API D3D12Renderer
 	{	
 	private:
 		static const int s_swapChainBufferCount = 2;

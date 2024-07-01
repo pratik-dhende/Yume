@@ -16,6 +16,7 @@ project "Yume"
     location "Yume"
     kind "SharedLib"
     language "C++"
+    staticruntime "Off"
 
     targetdir("bin/" .. outputdir .. "/%{prj.name}")
     objdir("bin-int/" .. outputdir .. "/%{prj.name}")
@@ -38,7 +39,6 @@ project "Yume"
 
     filter "system:windows"
         cppdialect "C++20"
-        staticruntime "Off"
         systemversion "latest"
 
         defines
@@ -58,20 +58,24 @@ project "Yume"
             "YM_DEBUG",
             "YM_ENABLE_ASSERTS",
         }
+        runtime "Debug"
         symbols "On"
 
     filter "configurations:Stage"
         defines "YM_STAGE"
+        runtime "Release"
         optimize "On"
     
     filter "configurations:Release"
         defines "YM_RELEASE"
+        runtime "Release"
         optimize "On"
 
 
 project "Sandbox"
     location "Sandbox"
     language "C++"
+    staticruntime "off"
 
     targetdir("bin/" .. outputdir .. "/%{prj.name}")
     objdir("bin-int/" .. outputdir .. "/%{prj.name}")
@@ -96,7 +100,6 @@ project "Sandbox"
 
     filter "system:windows"
         cppdialect "C++20"
-        staticruntime "Off"
         systemversion "latest"
 
         defines
@@ -107,14 +110,17 @@ project "Sandbox"
     filter "configurations:Debug"
         kind "ConsoleApp"
         defines "YM_DEBUG"
+        runtime "Debug"
         symbols "On"
 
     filter "configurations:Stage"
         kind "WindowedApp"
         defines "YM_STAGE"
+        runtime "Release"
         optimize "On"
     
     filter "configurations:Release"
         kind "WindowedApp"
         defines "YM_RELEASE"
+        runtime "Release"
         optimize "On"
