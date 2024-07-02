@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Yume/Log.h"
+#include "directx/d3dx12.h"
 
 #include <iostream>
 #include <memory>
@@ -20,8 +21,8 @@
 #include <system_error>
 #include <wrl/client.h>
 
-#include "directx/d3dx12.h"
 #include <dxgi1_6.h>
+#include <d3dcompiler.h>
 #include <DirectXMath.h>
 
 #ifdef YM_PLATFORM_WINDOWS

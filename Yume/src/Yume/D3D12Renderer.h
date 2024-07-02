@@ -10,7 +10,7 @@
 
 namespace Yume
 {	
-	class ID3D12Window
+	class YM_API ID3D12Window
 	{
 	public:
 		virtual int getWidth() const noexcept = 0;
@@ -25,6 +25,8 @@ namespace Yume
 
 	public:
 		D3D12Renderer(const ID3D12Window& window);
+		Microsoft::WRL::ComPtr<ID3DBlob> compileShader(const std::wstring& filename, const D3D_SHADER_MACRO* defines, const std::string& entryPoint, const std::string& target);
+
 
 	public:
 		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> m_commandList;

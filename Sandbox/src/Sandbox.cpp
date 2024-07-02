@@ -8,6 +8,8 @@ void Sandbox::init()
 	buildCbvHeap();
 	buildConstantBuffer();
 	buildRootSignature();
+	buildShadersAndInputLayout();
+	buildBoxGeometry();
 }
 
 void Sandbox::update()
@@ -43,6 +45,8 @@ void Sandbox::buildConstantBuffer()
 void Sandbox::buildRootSignature()
 {	
 	CD3DX12_DESCRIPTOR_RANGE descTableRanges[1];
+
+	// TODO: Fix the "Using uninitialized memory"
 	descTableRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
 
 	CD3DX12_ROOT_PARAMETER rootParameters[1];
@@ -63,4 +67,20 @@ void Sandbox::buildRootSignature()
 	YM_THROW_IF_FAILED_DX_EXCEPTION(hrSerializedRoot);
 
 	m_renderer->m_device->CreateRootSignature(0, serializedRoot->GetBufferPointer(), serializedRoot->GetBufferSize(), IID_PPV_ARGS(m_rootSignature.ReleaseAndGetAddressOf()));
+}
+
+void Sandbox::buildShadersAndInputLayout()
+{	
+	m_vsByteCode = m_renderer->compileShader(L"Shaders/VS.hlsl", nullptr, "VS", "vs_5_0");
+	m_psByteCode = m_renderer->compileShader(L"Shaders/PS.hlsl", nullptr, "PS", "ps_5_0");
+
+	m_inputLayout = {
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
+	};
+}
+
+void Sandbox::buildBoxGeometry()
+{
+
 }

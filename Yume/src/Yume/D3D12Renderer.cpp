@@ -175,4 +175,26 @@ namespace Yume
 			YM_CORE_INFO("DisplayMode: Width - {0}, Height - {1}, Refresh Rate - {2}/{3}", displayMode.Width, displayMode.Height, displayMode.RefreshRate.Numerator, displayMode.RefreshRate.Denominator);
 		}
 	}
+
+	Microsoft::WRL::ComPtr<ID3DBlob> D3D12Renderer::compileShader(const std::wstring& filename, const D3D_SHADER_MACRO* defines, const std::string& entryPoint, const std::string& target)
+	{
+		// TODO: Remove D3DCompile as for DirectX 12, Shader Model 5.1, the D3DCompile API, and FXC are all deprecated. Use Shader Model 6 via DXIL instead. See https://github.com/microsoft/DirectXShaderCompiler. (Kept it for simplicity for now)
+		Microsoft::WRL::ComPtr<ID3DBlob> compiledByteCode = nullptr;
+		Microsoft::WRL::ComPtr<ID3DBlob> compileError = nullptr;
+
+		UINT compileFlags = 0;
+#ifdef YM_DEBUG
+		compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+
+		HRESULT compileResult = D3DCompileFromFile(filename.c_str(), defines, D3D_COMPILE_STANDARD_FILE_INCLUDE, entryPoint.c_str(), target.c_str(), compileFlags, 0, compiledByteCode.GetAddressOf(), compileError.GetAddressOf());
+
+		if (compileError)
+		{
+			YM_ERROR(static_cast<char*>(compileError->GetBufferPointer()));
+		}
+		YM_THROW_IF_FAILED_DX_EXCEPTION(compileResult);
+
+		return compiledByteCode;
+	}
 }

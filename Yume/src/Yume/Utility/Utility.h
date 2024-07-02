@@ -15,7 +15,7 @@ namespace Yume
     std::wstring ansiToWString(const std::string& str);
     std::string wStringToAnsi(const std::wstring& wstr);
 
-    class Exception
+    class YM_API Exception
     {
     public:
         Exception(const std::wstring& filename, const int lineNumber)

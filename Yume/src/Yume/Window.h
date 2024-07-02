@@ -11,7 +11,7 @@ namespace Yume
 	{
 	public:
 		// Used to implement methods of same signatures with different implementations.
-		class D3D12Port : public Yume::ID3D12Window
+		class YM_API D3D12Port : public Yume::ID3D12Window
 		{	
 		public:
 			D3D12Port(const Window& window) 

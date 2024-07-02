@@ -12,6 +12,8 @@ private:
 	void buildCbvHeap();
 	void buildConstantBuffer();
 	void buildRootSignature();
+	void buildShadersAndInputLayout();
+	void buildBoxGeometry();
 
 private:
 	struct ObjectConstants
@@ -24,4 +26,9 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> m_rootSignature = nullptr;
 
 	std::unique_ptr<Yume::UploadBuffer<ObjectConstants>> m_objectConstants = nullptr;
+
+	Microsoft::WRL::ComPtr<ID3DBlob> m_vsByteCode;
+	Microsoft::WRL::ComPtr<ID3DBlob> m_psByteCode;
+
+	std::vector<D3D12_INPUT_ELEMENT_DESC> m_inputLayout;
 };
