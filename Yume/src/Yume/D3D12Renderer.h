@@ -4,8 +4,9 @@
 #include <dxgi1_6.h>
 
 // TODO: Add to premake
-#pragma comment(lib,"d3dcompiler.lib")
-#pragma comment(lib, "D3D12.lib")
+#pragma comment(lib, "dxguid.lib")
+#pragma comment(lib, "d3dcompiler.lib")
+#pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 
 namespace Yume
@@ -27,10 +28,10 @@ namespace Yume
 		D3D12Renderer(const ID3D12Window& window);
 		Microsoft::WRL::ComPtr<ID3DBlob> compileShader(const std::wstring& filename, const D3D_SHADER_MACRO* defines, const std::string& entryPoint, const std::string& target);
 
-
 	public:
+		Microsoft::WRL::ComPtr<ID3D12Device4> m_device;
+		Microsoft::WRL::ComPtr<ID3D12CommandAllocator> m_commandAllocator;
 		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> m_commandList;
-		Microsoft::WRL::ComPtr<ID3D12Device> m_device;
 
 	private:
 		void init(const ID3D12Window& window);
@@ -46,7 +47,6 @@ namespace Yume
 		Microsoft::WRL::ComPtr<ID3D12Fence> m_fence;
 
 		Microsoft::WRL::ComPtr<ID3D12CommandQueue> m_commandQueue;
-		Microsoft::WRL::ComPtr<ID3D12CommandAllocator> m_commandAllocator;
 
 		Microsoft::WRL::ComPtr<IDXGISwapChain> m_swapChain;
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> m_rtvDescriptorHeap;

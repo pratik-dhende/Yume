@@ -24,6 +24,7 @@
 #include <dxgi1_6.h>
 #include <d3dcompiler.h>
 #include <DirectXMath.h>
+#include <DirectXColors.h>
 
 #ifdef YM_PLATFORM_WINDOWS
 	#include <windows.h>

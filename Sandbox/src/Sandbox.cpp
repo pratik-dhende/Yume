@@ -2,8 +2,9 @@
 #include "Sandbox.h"
 
 void Sandbox::init()
-{
-	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_commandList.Reset());
+{	
+	// Puts command list in the recording state
+	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_commandList->Reset(m_renderer->m_commandAllocator.Get(), nullptr));
 
 	buildCbvHeap();
 	buildConstantBuffer();
@@ -82,5 +83,45 @@ void Sandbox::buildShadersAndInputLayout()
 
 void Sandbox::buildBoxGeometry()
 {
+	std::array<Vertex, 8> vertices = {
+		Vertex({ DirectX::XMFLOAT3(-1.0f, -1.0f, -1.0f), DirectX::XMFLOAT4(DirectX::Colors::White) }),
+		Vertex({ DirectX::XMFLOAT3(-1.0f, +1.0f, -1.0f), DirectX::XMFLOAT4(DirectX::Colors::Black) }),
+		Vertex({ DirectX::XMFLOAT3(+1.0f, +1.0f, -1.0f), DirectX::XMFLOAT4(DirectX::Colors::Red) }),
+		Vertex({ DirectX::XMFLOAT3(+1.0f, -1.0f, -1.0f), DirectX::XMFLOAT4(DirectX::Colors::Green) }),
+		Vertex({ DirectX::XMFLOAT3(-1.0f, -1.0f, +1.0f), DirectX::XMFLOAT4(DirectX::Colors::Blue) }),
+		Vertex({ DirectX::XMFLOAT3(-1.0f, +1.0f, +1.0f), DirectX::XMFLOAT4(DirectX::Colors::Yellow) }),
+		Vertex({ DirectX::XMFLOAT3(+1.0f, +1.0f, +1.0f), DirectX::XMFLOAT4(DirectX::Colors::Cyan) }),
+		Vertex({ DirectX::XMFLOAT3(+1.0f, -1.0f, +1.0f), DirectX::XMFLOAT4(DirectX::Colors::Magenta) })
+	};
 
+	std::array<std::uint16_t, 36> indices =
+	{
+		// front face
+		0, 1, 2,
+		0, 2, 3,
+
+		// back face
+		4, 6, 5,
+		4, 7, 6,
+
+		// left face
+		4, 5, 1,
+		4, 1, 0,
+
+		// right face
+		3, 2, 6,
+		3, 6, 7,
+
+		// top face
+		1, 5, 6,
+		1, 6, 2,
+
+		// bottom face
+		4, 0, 3,
+		4, 3, 7
+	};
+
+	m_boxMesh = std::make_unique<Yume::Mesh>("BoxMesh", m_renderer->m_device.Get(), m_renderer->m_commandList.Get(), vertices.data(), sizeof(vertices[0]), vertices.size(), indices.data(), sizeof(indices[0]), indices.size());
+
+	m_boxMesh->subMeshes["box"] = Yume::SubMesh { (UINT)indices.size(), 0, 0 };
 }

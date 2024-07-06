@@ -9,6 +9,7 @@
 
 #include "Yume/D3D12Renderer.h"
 #include "Yume/UploadBuffer.h"
+#include "Yume/Mesh.h"
 
 // Entry point ----------------------------------
 #include "Yume/EntryPoint.h"
