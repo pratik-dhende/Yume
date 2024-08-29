@@ -49,10 +49,10 @@ namespace Yume
 		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &msQualityLevels, sizeof(msQualityLevels)));
 
 		// Set to use maximum 4X MSAA quality.
-		m_4xMsaaQuality = msQualityLevels.NumQualityLevels;
+		m_4xMsaaQualityLevels = msQualityLevels.NumQualityLevels;
 
 		// All Direct3D 11 capable devices support 4X MSAA for all render target formats
-		YM_CORE_ASSERT(m_4xMsaaQuality > 0, "Unexpected MSAA Quality Level");
+		YM_CORE_ASSERT(m_4xMsaaQualityLevels > 0, "Unexpected MSAA Quality Level");
 
 #ifdef YM_DEBUG
 		D3D12Renderer::logAdapters();
@@ -93,13 +93,13 @@ namespace Yume
 		swapChainDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
 		swapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 		swapChainDesc.SampleDesc.Count = m_4xMsaaEnabled ? 4 : 1;
-		swapChainDesc.SampleDesc.Quality = m_4xMsaaEnabled ? m_4xMsaaQuality - 1 : 0;
+		swapChainDesc.SampleDesc.Quality = m_4xMsaaEnabled ? m_4xMsaaQualityLevels - 1 : 0;
 		swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 		swapChainDesc.BufferCount = s_swapChainBufferCount;
 		swapChainDesc.OutputWindow = window.getHandle();
 		swapChainDesc.Windowed = true;
 		swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-		swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+		swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH; // TODO: Test this.
 
 		YM_THROW_IF_FAILED_DX_EXCEPTION(m_factory->CreateSwapChain(m_commandQueue.Get(), &swapChainDesc, m_swapChain.ReleaseAndGetAddressOf()));
 	}

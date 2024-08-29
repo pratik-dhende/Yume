@@ -33,6 +33,12 @@ namespace Yume
 		Microsoft::WRL::ComPtr<ID3D12CommandAllocator> m_commandAllocator;
 		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> m_commandList;
 
+		DXGI_FORMAT m_backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+		DXGI_FORMAT m_depthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+		bool m_4xMsaaEnabled = false;
+		UINT m_4xMsaaQualityLevels = 0;
+
 	private:
 		void init(const ID3D12Window& window);
 		void createCommandObjects();
@@ -55,10 +61,7 @@ namespace Yume
 		UINT m_rtvDescriptorSize = 0;
 		UINT m_dsvDescriptorSize = 0;
 		UINT m_cbvSrvUavDescriptorSize = 0;
-		UINT m_4xMsaaQuality = 0;
 
-		DXGI_FORMAT m_backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
-		bool m_4xMsaaEnabled = false;
 	};
 }

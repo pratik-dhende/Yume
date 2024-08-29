@@ -11,6 +11,7 @@ void Sandbox::init()
 	buildRootSignature();
 	buildShadersAndInputLayout();
 	buildBoxGeometry();
+	buildPipelineStateObject();
 }
 
 void Sandbox::update()
@@ -123,5 +124,34 @@ void Sandbox::buildBoxGeometry()
 
 	m_boxMesh = std::make_unique<Yume::Mesh>("BoxMesh", m_renderer->m_device.Get(), m_renderer->m_commandList.Get(), vertices.data(), sizeof(vertices[0]), vertices.size(), indices.data(), sizeof(indices[0]), indices.size());
 
-	m_boxMesh->subMeshes["box"] = Yume::SubMesh { (UINT)indices.size(), 0, 0 };
+	m_boxMesh->subMeshes["box"] = Yume::SubMesh { static_cast<UINT>(indices.size()), 0, 0 };
+}
+
+void Sandbox::buildPipelineStateObject()
+{	
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc;
+	ZeroMemory(&pipelineStateDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
+
+	pipelineStateDesc.pRootSignature = m_rootSignature.Get();
+	pipelineStateDesc.VS = CD3DX12_SHADER_BYTECODE(m_vsByteCode.Get());
+	pipelineStateDesc.PS = CD3DX12_SHADER_BYTECODE(m_psByteCode.Get());
+	pipelineStateDesc.NodeMask = 0;
+	pipelineStateDesc.InputLayout = D3D12_INPUT_LAYOUT_DESC{ m_inputLayout.data(), static_cast<UINT>(m_inputLayout.size()) };
+	pipelineStateDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+	pipelineStateDesc.BlendState = CD3DX12_BLEND_DESC(CD3DX12_DEFAULT());
+	pipelineStateDesc.SampleMask = UINT_MAX;
+	pipelineStateDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(CD3DX12_DEFAULT());
+	pipelineStateDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(CD3DX12_DEFAULT());
+	pipelineStateDesc.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED; // TODO: Is this the right way?
+	pipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	pipelineStateDesc.NumRenderTargets = 1;
+	pipelineStateDesc.RTVFormats[0] = m_renderer->m_backBufferFormat;
+	pipelineStateDesc.DSVFormat = m_renderer->m_depthStencilFormat;
+	pipelineStateDesc.SampleDesc.Count = m_renderer->m_4xMsaaEnabled ? 4 : 1;
+	pipelineStateDesc.SampleDesc.Quality = m_renderer->m_4xMsaaEnabled ? m_renderer->m_4xMsaaQualityLevels - 1 : 0;
+	pipelineStateDesc.CachedPSO.pCachedBlob = nullptr; // TODO: Is this the right way?
+	pipelineStateDesc.CachedPSO.CachedBlobSizeInBytes = 0;
+	pipelineStateDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE; // TODO: Is this the right way?
+
+	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_device->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(m_pipelineStateObject.ReleaseAndGetAddressOf())));
 }

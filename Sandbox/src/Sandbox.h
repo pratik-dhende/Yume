@@ -14,6 +14,7 @@ private:
 	void buildRootSignature();
 	void buildShadersAndInputLayout();
 	void buildBoxGeometry();
+	void buildPipelineStateObject();
 
 private:
 	struct ObjectConstants
@@ -38,4 +39,6 @@ private:
 	Microsoft::WRL::ComPtr<ID3DBlob> m_psByteCode;
 
 	std::vector<D3D12_INPUT_ELEMENT_DESC> m_inputLayout;
+
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> m_pipelineStateObject;
 };
