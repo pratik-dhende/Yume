@@ -60,6 +60,55 @@ namespace Yume
 		createCommandObjects();
 		createSwapChain(window);
 		createRtvAndDsvDescriptorHeaps();
+
+		// Specify viewport and scissor rectangle
+		m_screenViewport.TopLeftX = 0.0f;
+		m_screenViewport.TopLeftY = 0.0f;
+		m_screenViewport.Width = static_cast<FLOAT>(window.getWidth());
+		m_screenViewport.Height = static_cast<FLOAT>(window.getHeight());
+		m_screenViewport.MinDepth = 0.0f;
+		m_screenViewport.MaxDepth = 1.0f;
+
+		m_scissorRect.top = 0;
+		m_scissorRect.left = 0;
+		m_scissorRect.right = window.getWidth();
+		m_scissorRect.bottom = window.getHeight();
+
+		// Create Render Target View
+		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptorHandle(m_rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+		for (int i = 0; i < s_swapChainBufferCount; i++)
+		{
+			YM_THROW_IF_FAILED_DX_EXCEPTION(m_swapChain->GetBuffer(i, IID_PPV_ARGS(m_swapChainBuffers[i].ReleaseAndGetAddressOf())));
+			m_device->CreateRenderTargetView(m_swapChainBuffers[i].Get(), nullptr, rtvDescriptorHandle);
+			rtvDescriptorHandle.Offset(1, m_rtvDescriptorSize);
+		}
+
+		D3D12_RESOURCE_DESC depthStencilDesc;
+		depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		depthStencilDesc.Alignment = 0;
+		depthStencilDesc.Width = window.getWidth();
+		depthStencilDesc.Height = window.getHeight();
+		depthStencilDesc.DepthOrArraySize = 1;
+		depthStencilDesc.Format = m_depthStencilFormat; // TODO: Change in future for new demo
+		depthStencilDesc.MipLevels = 1;
+		depthStencilDesc.SampleDesc.Count = m_4xMsaaEnabled ? 4 : 1;
+		depthStencilDesc.SampleDesc.Quality = m_4xMsaaEnabled ? m_4xMsaaQualityLevels - 1 : 0;
+		depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+		auto depthStencilHeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+		auto depthStencilClearValue = CD3DX12_CLEAR_VALUE(m_depthStencilFormat, 1.0f, 0);
+		// TODO: Might need to change resource state (not consistent)
+		// TODO: Research on compatiblity of D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES with CreateCommittedResource as it doesn't allow me to use it
+		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateCommittedResource(&depthStencilHeapProps, D3D12_HEAP_FLAG_NONE, &depthStencilDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &depthStencilClearValue, IID_PPV_ARGS(m_depthStencilBuffer.ReleaseAndGetAddressOf())));
+
+		D3D12_DEPTH_STENCIL_VIEW_DESC dsvViewDesc;
+		dsvViewDesc.Format = m_depthStencilFormat;
+		dsvViewDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+		dsvViewDesc.Flags = D3D12_DSV_FLAG_NONE;
+		dsvViewDesc.Texture2D.MipSlice = 0;
+
+		m_device->CreateDepthStencilView(m_depthStencilBuffer.Get(), &dsvViewDesc, m_dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 	}
 
 	void D3D12Renderer::createCommandObjects()
@@ -71,11 +120,8 @@ namespace Yume
 
 		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(m_commandAllocator.ReleaseAndGetAddressOf())));
 
-		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateCommandList1(0, D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(m_commandList.ReleaseAndGetAddressOf())));
-
 		// Start off in a closed state. This is because the first time we refer to the command list we will Reset it, and it needs to be closed before calling Reset.
-		// TODO: Refer to documentation for creating command list without closing it.
-		m_commandList->Close();
+		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateCommandList1(0, D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(m_commandList.ReleaseAndGetAddressOf())));
 	}
 
 	void D3D12Renderer::createSwapChain(const ID3D12Window& window)
@@ -119,6 +165,34 @@ namespace Yume
 		dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 		dsvHeapDesc.NodeMask = 0;
 		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(m_dsvDescriptorHeap.ReleaseAndGetAddressOf())));
+	}
+
+	void D3D12Renderer::flushCommandQueue()
+	{	
+		// Advance the fence value to mark commands up to this fence point.
+		m_currentFence++;
+
+		// Add an instruction to the command queue to set a new fence point.  Because we 
+		// are on the GPU timeline, the new fence point won't be set until the GPU finishes
+		// processing all the commands prior to this Signal().
+		YM_THROW_IF_FAILED_DX_EXCEPTION(m_commandQueue->Signal(m_fence.Get(), m_currentFence));
+
+		// Wait until the GPU has completed commands up to this fence point.
+		if (m_fence->GetCompletedValue() < m_currentFence)
+		{
+			const HANDLE fenceEventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+			YM_THROW_IF_FAILED_WIN32_EXCEPTION(fenceEventHandle);
+
+			YM_THROW_IF_FAILED_DX_EXCEPTION(m_fence->SetEventOnCompletion(m_currentFence, fenceEventHandle));
+
+			WaitForSingleObject(fenceEventHandle, INFINITE);
+			CloseHandle(fenceEventHandle);
+		}
+	}
+
+	void D3D12Renderer::switchBackBuffer()
+	{
+		m_currentBackBuffer = (m_currentBackBuffer + 1) % s_swapChainBufferCount;
 	}
 
 	void D3D12Renderer::logAdapters() const

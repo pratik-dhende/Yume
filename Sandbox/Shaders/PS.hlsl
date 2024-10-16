@@ -1,4 +1,10 @@
-float4 PS() : SV_TARGET
+struct VertexOut
 {
-	return float4(1.0f, 1.0f, 1.0f, 1.0f);
+    float4 posH : SV_POSITION;
+    float4 color : COLOR;
+};
+
+float4 PS(VertexOut pIn) : SV_TARGET
+{
+	return pIn.color;
 }

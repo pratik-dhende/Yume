@@ -6,17 +6,100 @@ void Sandbox::init()
 	// Puts command list in the recording state
 	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_commandList->Reset(m_renderer->m_commandAllocator.Get(), nullptr));
 
+	// Initialize
 	buildCbvHeap();
 	buildConstantBuffer();
 	buildRootSignature();
 	buildShadersAndInputLayout();
 	buildBoxGeometry();
 	buildPipelineStateObject();
+
+	// Execute the initialization commands
+	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_commandList->Close());
+	ID3D12CommandList* commandLists[] = { m_renderer->m_commandList.Get() };
+	m_renderer->m_commandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
+
+	m_renderer->flushCommandQueue();
+
+	// Create world view projection matrix
+	DirectX::XMVECTOR position = DirectX::XMVectorSet(0.0f, 0.0f, -5.0f, 1.0f);
+	DirectX::XMVECTOR target = DirectX::XMVectorZero();
+	DirectX::XMVECTOR up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+	DirectX::XMMATRIX view = DirectX::XMMatrixLookAtLH(position, target, up);
+	DirectX::XMStoreFloat4x4(&m_view, view);
+
+	DirectX::XMMATRIX projection = DirectX::XMMatrixPerspectiveFovLH(0.25f * DirectX::XM_PI, 1.0f * m_window->getWidth() / m_window->getHeight(), 1.0f, 1000.0f);
+	DirectX::XMStoreFloat4x4(&m_projection, projection);
+
+	DirectX::XMMATRIX worldViewProjection = DirectX::XMLoadFloat4x4(&m_world) * DirectX::XMLoadFloat4x4(&m_view) * DirectX::XMLoadFloat4x4(&m_projection);
+
+	// Upload world view projection matrix
+	ObjectConstants objectConstants;
+	DirectX::XMStoreFloat4x4(&objectConstants.m_worldViewProjMatrix, XMMatrixTranspose(worldViewProjection));
+	m_objectConstants->updateBuffer(0, objectConstants);
 }
 
 void Sandbox::update()
-{
+{	
+	// Clear command allocator and command list
+	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_commandAllocator->Reset());
+	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_commandList->Reset(m_renderer->m_commandAllocator.Get(), m_pipelineStateObject.Get()));
+
+	// Set the view port and scissor rects
+	m_renderer->m_commandList->RSSetViewports(1, &m_renderer->m_screenViewport);
+	m_renderer->m_commandList->RSSetScissorRects(1, &m_renderer->m_scissorRect);
+
+	// Switch from present to target
+	auto presentTargetTransition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderer->getCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	m_renderer->m_commandList->ResourceBarrier(1, &presentTargetTransition);
+
+	// Clear the render target and dsv
+	m_renderer->m_commandList->ClearRenderTargetView(m_renderer->getCurrentBackBufferView(), DirectX::Colors::LightSteelBlue, 0, nullptr);
+	m_renderer->m_commandList->ClearDepthStencilView(m_renderer->getDepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
+	// Set render targets
+	auto backBufferView = m_renderer->getCurrentBackBufferView();
+	auto depthStencilView = m_renderer->getDepthStencilView();
+	m_renderer->m_commandList->OMSetRenderTargets(1, &backBufferView, true, &depthStencilView);
+
+	// Set descriptor heaps
+	ID3D12DescriptorHeap* descriptorHeaps[] = { m_cbvHeap.Get() };
+	m_renderer->m_commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
+	// Set root signature
+	m_renderer->m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
+
+	// Set vertex buffer and primitive type
+	auto vertexBufferView = m_boxMesh->getVertexBufferView();
+	auto indexBufferView = m_boxMesh->getIndexBufferView();
+	m_renderer->m_commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+	m_renderer->m_commandList->IASetIndexBuffer(&indexBufferView);
+	m_renderer->m_commandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// Set constant buffer
+	m_renderer->m_commandList->SetGraphicsRootDescriptorTable(0, m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
+
+	// Draw
+	m_renderer->m_commandList->DrawIndexedInstanced(m_boxMesh->subMeshes["box"].indexCount, 1, 0, 0, 0);
+
+	// Switch from target to present
+	auto targetPresentTransition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderer->getCurrentBackBuffer(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+	m_renderer->m_commandList->ResourceBarrier(1, &targetPresentTransition);
 	
+	// Close command list
+	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_commandList->Close());
+
+	// Execute command list
+	ID3D12CommandList* commandLists[] = { m_renderer->m_commandList.Get() };
+	m_renderer->m_commandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
+
+	// Present
+	// TODO: Why did we use 0s as the parameters?
+	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_swapChain->Present(0, 0));
+	m_renderer->switchBackBuffer();
+
+	m_renderer->flushCommandQueue();
 }
 
 std::unique_ptr<Yume::Application> Yume::createApplication() {

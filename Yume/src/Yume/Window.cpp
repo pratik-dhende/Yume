@@ -49,6 +49,16 @@ namespace Yume
 		return m_hwnd;
 	}
 
+	int Window::getWidth() const noexcept
+	{
+		return m_width;
+	}
+
+	int Window::getHeight() const noexcept
+	{
+		return m_height;
+	}
+
 	void Window::show(const int nCmdShow) const
 	{
 		ShowWindow(m_hwnd, nCmdShow);

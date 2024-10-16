@@ -33,6 +33,8 @@ namespace Yume
 		Window(const std::wstring& title, const int width, const int height);
 
 		HWND getHandle() const noexcept;
+		int getWidth() const noexcept;
+		int getHeight() const noexcept;
 
 		void show(const int nCmdShow) const;
 

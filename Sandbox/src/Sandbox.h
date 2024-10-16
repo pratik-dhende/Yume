@@ -41,4 +41,8 @@ private:
 	std::vector<D3D12_INPUT_ELEMENT_DESC> m_inputLayout;
 
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> m_pipelineStateObject;
+
+	DirectX::XMFLOAT4X4 m_view = Yume::identityMatrix4x4();
+	DirectX::XMFLOAT4X4 m_projection = Yume::identityMatrix4x4();
+	DirectX::XMFLOAT4X4 m_world = Yume::identityMatrix4x4();
 };
