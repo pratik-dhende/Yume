@@ -180,7 +180,7 @@ namespace Yume
 		// Wait until the GPU has completed commands up to this fence point.
 		if (m_fence->GetCompletedValue() < m_currentFence)
 		{
-			const HANDLE fenceEventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+			const HANDLE fenceEventHandle = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
 			YM_THROW_IF_FAILED_WIN32_EXCEPTION(fenceEventHandle);
 
 			YM_THROW_IF_FAILED_DX_EXCEPTION(m_fence->SetEventOnCompletion(m_currentFence, fenceEventHandle));
