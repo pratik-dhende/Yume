@@ -1,7 +1,7 @@
 #include "ympch.h"
-#include "Sandbox.h"
+#include "Box.h"
 
-void Sandbox::init()
+void Box::init()
 {	
 	// Puts command list in the recording state
 	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_commandList->Reset(m_renderer->m_commandAllocator.Get(), nullptr));
@@ -40,7 +40,7 @@ void Sandbox::init()
 	m_objectConstants->updateBuffer(0, objectConstants);
 }
 
-void Sandbox::update()
+void Box::update()
 {	
 	// Clear command allocator and command list
 	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_commandAllocator->Reset());
@@ -103,10 +103,10 @@ void Sandbox::update()
 }
 
 std::unique_ptr<Yume::Application> Yume::createApplication() {
-	return std::make_unique<Sandbox>();
+	return std::make_unique<Box>();
 }
 
-void Sandbox::buildCbvHeap()
+void Box::buildCbvHeap()
 {
 	D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc;
 	cbvHeapDesc.NumDescriptors = 1;
@@ -116,7 +116,7 @@ void Sandbox::buildCbvHeap()
 	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(m_cbvHeap.ReleaseAndGetAddressOf())));
 }
 
-void Sandbox::buildConstantBuffer()
+void Box::buildConstantBuffer()
 {
 	m_objectConstants = std::make_unique<Yume::UploadBuffer<ObjectConstants>>(m_renderer->m_device.Get(), 1, true);
 
@@ -127,7 +127,7 @@ void Sandbox::buildConstantBuffer()
 	m_renderer->m_device->CreateConstantBufferView(&cbvDesc, m_cbvHeap->GetCPUDescriptorHandleForHeapStart());
 }
 
-void Sandbox::buildRootSignature()
+void Box::buildRootSignature()
 {	
 	CD3DX12_DESCRIPTOR_RANGE descTableRanges[1];
 
@@ -154,7 +154,7 @@ void Sandbox::buildRootSignature()
 	m_renderer->m_device->CreateRootSignature(0, serializedRoot->GetBufferPointer(), serializedRoot->GetBufferSize(), IID_PPV_ARGS(m_rootSignature.ReleaseAndGetAddressOf()));
 }
 
-void Sandbox::buildShadersAndInputLayout()
+void Box::buildShadersAndInputLayout()
 {	
 	m_vsByteCode = m_renderer->compileShader(L"Shaders/VS.hlsl", nullptr, "VS", "vs_5_0");
 	m_psByteCode = m_renderer->compileShader(L"Shaders/PS.hlsl", nullptr, "PS", "ps_5_0");
@@ -165,7 +165,7 @@ void Sandbox::buildShadersAndInputLayout()
 	};
 }
 
-void Sandbox::buildBoxGeometry()
+void Box::buildBoxGeometry()
 {
 	std::array<Vertex, 8> vertices = {
 		Vertex({ DirectX::XMFLOAT3(-1.0f, -1.0f, -1.0f), DirectX::XMFLOAT4(DirectX::Colors::White) }),
@@ -210,7 +210,7 @@ void Sandbox::buildBoxGeometry()
 	m_boxMesh->subMeshes["box"] = Yume::SubMesh { static_cast<UINT>(indices.size()), 0, 0 };
 }
 
-void Sandbox::buildPipelineStateObject()
+void Box::buildPipelineStateObject()
 {	
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc;
 	ZeroMemory(&pipelineStateDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));

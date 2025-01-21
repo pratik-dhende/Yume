@@ -2,7 +2,7 @@
 #include "Yume.h"
 #include <DirectXMath.h>
 
-class Sandbox : public Yume::Application
+class Box : public Yume::Application
 {
 public:
 	void init() override;

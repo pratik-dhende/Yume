@@ -8,7 +8,7 @@ workspace "Yume"
         "Release"
     }
 
-    startproject "Sandbox"
+    startproject "Box"
 
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}/"
 
@@ -47,11 +47,6 @@ project "Yume"
             "YM_BUILD_DLL"
         }
 
-        postbuildcommands
-        {
-            ("{COPYFILE} %{cfg.buildtarget.relpath} \"../bin/" .. outputdir .. "/Sandbox/\"")
-        }
-
     filter "configurations:Debug"
         defines 
         {   
@@ -72,8 +67,8 @@ project "Yume"
         optimize "On"
 
 
-project "Sandbox"
-    location "Sandbox"
+project "Box"
+    location "Demos/Box"
     language "C++"
     staticruntime "off"
 
@@ -82,8 +77,8 @@ project "Sandbox"
 
     files 
     {
-        "%{prj.name}/src/**.h",
-        "%{prj.name}/src/**.cpp"
+        "Demos/%{prj.name}/src/**.h",
+        "Demos/%{prj.name}/src/**.cpp"
     }
 
     includedirs
@@ -105,6 +100,11 @@ project "Sandbox"
         defines
         {
             "YM_PLATFORM_WINDOWS"
+        }
+
+        postbuildcommands
+        {
+            ("{COPYFILE} \"../../bin/" .. outputdir .. "/Yume/Yume.dll\" \"../../bin/" .. outputdir .. "/Box\"")
         }
 
     filter "configurations:Debug"
