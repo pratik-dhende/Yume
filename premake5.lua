@@ -4,7 +4,6 @@ workspace "Yume"
     configurations
     {
         "Debug",
-        "Stage",
         "Release"
     }
 
@@ -14,9 +13,9 @@ outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}/"
 
 project "Yume"
     location "Yume"
-    kind "SharedLib"
+    kind "StaticLib"
     language "C++"
-    staticruntime "Off"
+    staticruntime "On"
 
     targetdir("bin/" .. outputdir .. "/%{prj.name}")
     objdir("bin-int/" .. outputdir .. "/%{prj.name}")
@@ -44,7 +43,6 @@ project "Yume"
         defines
         {
             "YM_PLATFORM_WINDOWS",
-            "YM_BUILD_DLL"
         }
 
     filter "configurations:Debug"
@@ -55,11 +53,6 @@ project "Yume"
         }
         runtime "Debug"
         symbols "On"
-
-    filter "configurations:Stage"
-        defines "YM_STAGE"
-        runtime "Release"
-        optimize "On"
     
     filter "configurations:Release"
         defines "YM_RELEASE"
@@ -70,7 +63,7 @@ project "Yume"
 project "Box"
     location "Demos/Box"
     language "C++"
-    staticruntime "off"
+    staticruntime "On"
 
     targetdir("bin/" .. outputdir .. "/%{prj.name}")
     objdir("bin-int/" .. outputdir .. "/%{prj.name}")
@@ -102,9 +95,51 @@ project "Box"
             "YM_PLATFORM_WINDOWS"
         }
 
-        postbuildcommands
+    filter "configurations:Debug"
+        kind "ConsoleApp"
+        defines "YM_DEBUG"
+        runtime "Debug"
+        symbols "On"
+    
+    filter "configurations:Release"
+        kind "WindowedApp"
+        defines "YM_RELEASE"
+        runtime "Release"
+        optimize "On"
+
+project "Shapes"
+    location "Demos/Shapes"
+    language "C++"
+    staticruntime "On"
+
+    targetdir("bin/" .. outputdir .. "/%{prj.name}")
+    objdir("bin-int/" .. outputdir .. "/%{prj.name}")
+
+    files 
+    {
+        "Demos/%{prj.name}/src/**.h",
+        "Demos/%{prj.name}/src/**.cpp"
+    }
+
+    includedirs
+    {
+        "Yume/vendor/spdlog/include",
+        "Yume/vendor/DirectX-Headers/include",
+        "Yume/src"
+    }
+
+    links
+    {
+        "Yume"
+    }
+
+    filter "system:windows"
+        cppdialect "C++20"
+        systemversion "latest"
+
+        defines
         {
-            ("{COPYFILE} \"../../bin/" .. outputdir .. "/Yume/Yume.dll\" \"../../bin/" .. outputdir .. "/Box\"")
+            "YM_PLATFORM_WINDOWS"
         }
 
     filter "configurations:Debug"
@@ -112,12 +147,6 @@ project "Box"
         defines "YM_DEBUG"
         runtime "Debug"
         symbols "On"
-
-    filter "configurations:Stage"
-        kind "WindowedApp"
-        defines "YM_STAGE"
-        runtime "Release"
-        optimize "On"
     
     filter "configurations:Release"
         kind "WindowedApp"

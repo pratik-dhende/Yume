@@ -34,7 +34,7 @@ namespace Yume
 
 #define EVENT_CLASS_CATEGORY(category) virtual int getCategoryFlags() const noexcept override { return category; }
 
-	class YM_API Event
+	class Event
 	{
 	public:
 		virtual EventType getEventType() const noexcept = 0;
@@ -52,7 +52,7 @@ namespace Yume
 		bool m_handled = false;
 	};
 
-	class YM_API EventDispatcher
+	class EventDispatcher
 	{
 		template<typename T>
 		using EventFunction = std::function<bool(T&)>;

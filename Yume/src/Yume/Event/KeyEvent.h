@@ -6,7 +6,7 @@
 
 namespace Yume
 {
-	class YM_API KeyEvent : public Event
+	class KeyEvent : public Event
 	{
 	public:
 		EVENT_CLASS_CATEGORY(toUType(EventCategory::Keyboard) | toUType(EventCategory::Input))
@@ -21,7 +21,7 @@ namespace Yume
 		int m_keyCode;
 	};
 
-	class YM_API KeyPressedEvent : public KeyEvent
+	class KeyPressedEvent : public KeyEvent
 	{
 	public:
 		EVENT_CLASS_TYPE(KeyPressed)
@@ -43,7 +43,7 @@ namespace Yume
 		bool m_isRepeat;
 	};
 
-	class YM_API KeyReleasedEvent : public KeyEvent
+	class KeyReleasedEvent : public KeyEvent
 	{
 	public:
 		EVENT_CLASS_TYPE(KeyReleased)

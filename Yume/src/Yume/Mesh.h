@@ -4,14 +4,14 @@
 
 namespace Yume
 {	
-	struct YM_API SubMesh
+	struct SubMesh
 	{
 		UINT indexCount = 0;
 		int startIndex = 0;
 		int baseVertexLocation = 0;
 	};
 
-	class YM_API Mesh
+	class Mesh
 	{
 	public:
 		Mesh(const std::string& name, ID3D12Device* device, ID3D12GraphicsCommandList* commandList, const void* vertexData, UINT64 vertexByteSize, UINT vertices, const void* indexData, UINT64 indexByteSize, UINT indices);

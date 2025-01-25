@@ -6,7 +6,7 @@
 
 namespace Yume
 {	
-	class YM_API MouseEvent : public Event
+	class MouseEvent : public Event
 	{
 	public:
 		EVENT_CLASS_CATEGORY(toUType(EventCategory::Mouse) | toUType(EventCategory::Input));
@@ -15,7 +15,7 @@ namespace Yume
 		MouseEvent() {}
 	};
 
-	class YM_API MouseMovedEvent : public MouseEvent
+	class MouseMovedEvent : public MouseEvent
 	{
 	public:
 		EVENT_CLASS_TYPE(MouseMoved)
@@ -39,7 +39,7 @@ namespace Yume
 		float m_mouseY;
 	};
 
-	class YM_API MouseScrolledEvent : public MouseEvent
+	class MouseScrolledEvent : public MouseEvent
 	{
 	public:
 		EVENT_CLASS_TYPE(MouseScrolled)
@@ -62,7 +62,7 @@ namespace Yume
 		float m_yOffset;
 	};
 
-	class YM_API MouseButtonEvent : public MouseEvent
+	class MouseButtonEvent : public MouseEvent
 	{
 	public:
 		int getMouseButton() const noexcept { return m_button; }
@@ -76,7 +76,7 @@ namespace Yume
 		int m_button;
 	};
 
-	class YM_API MouseButtonPressedEvent : public MouseButtonEvent
+	class MouseButtonPressedEvent : public MouseButtonEvent
 	{
 	public:
 		EVENT_CLASS_TYPE(MouseButtonPressed)
@@ -93,7 +93,7 @@ namespace Yume
 		}
 	};
 
-	class YM_API MouseButtonReleasedEvent : public MouseButtonEvent
+	class MouseButtonReleasedEvent : public MouseButtonEvent
 	{
 	public:
 		EVENT_CLASS_TYPE(MouseButtonReleased)

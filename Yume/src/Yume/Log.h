@@ -5,7 +5,7 @@
 
 namespace Yume {
 
-	class YM_API Log
+	class Log
 	{
 	public:
 		static void init();

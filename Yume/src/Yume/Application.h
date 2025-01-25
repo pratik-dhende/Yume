@@ -6,7 +6,7 @@ namespace Yume {
 	class Window;
 	class D3D12Renderer;
 
-	class YM_API Application
+	class Application
 	{
 	public:
 		Application();

@@ -10,12 +10,12 @@
 
 namespace Yume
 {
-    YM_API UINT nextMultiple256(UINT byteSize);
-    YM_API DirectX::XMFLOAT4X4 identityMatrix4x4();
+    UINT nextMultiple256(UINT byteSize);
+    DirectX::XMFLOAT4X4 identityMatrix4x4();
     std::wstring ansiToWString(const std::string& str);
     std::string wStringToAnsi(const std::wstring& wstr);
 
-    class YM_API Exception
+    class Exception
     {
     public:
         Exception(const std::wstring& filename, const int lineNumber)
@@ -29,7 +29,7 @@ namespace Yume
         int m_lineNumber;
     };
 
-    class YM_API DXException : public Exception
+    class DXException : public Exception
     {
     public:
         DXException(const HRESULT hr, const std::wstring& filename, const int lineNumber)

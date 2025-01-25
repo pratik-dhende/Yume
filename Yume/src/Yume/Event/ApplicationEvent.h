@@ -6,7 +6,7 @@
 
 namespace Yume
 {
-	class YM_API ApplicationEvent : public Event
+	class ApplicationEvent : public Event
 	{
 	public:
 		EVENT_CLASS_CATEGORY(toUType(EventCategory::Application))
@@ -15,7 +15,7 @@ namespace Yume
 		ApplicationEvent() { }
 	};
 
-	class YM_API WindowResizeEvent : public ApplicationEvent
+	class WindowResizeEvent : public ApplicationEvent
 	{
 	public:
 		EVENT_CLASS_TYPE(WindowResize)
@@ -39,25 +39,25 @@ namespace Yume
 		int m_height;
 	};
 
-	class YM_API WindowCloseEvent : public ApplicationEvent
+	class WindowCloseEvent : public ApplicationEvent
 	{
 	public:
 		EVENT_CLASS_TYPE(WindowClose)
 	};
 
-	class YM_API AppTickEvent : public ApplicationEvent
+	class AppTickEvent : public ApplicationEvent
 	{
 	public:
 		EVENT_CLASS_TYPE(AppTick)
 	};
 
-	class YM_API AppUpdateEvent : public ApplicationEvent
+	class AppUpdateEvent : public ApplicationEvent
 	{
 	public:
 		EVENT_CLASS_TYPE(AppUpdate)
 	};
 
-	class YM_API AppRenderEvent : public ApplicationEvent
+	class AppRenderEvent : public ApplicationEvent
 	{
 	public:
 		EVENT_CLASS_TYPE(AppRender)
