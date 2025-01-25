@@ -4,7 +4,7 @@
 
 namespace Yume
 {	
-	Mesh::Mesh(const std::string& name, ID3D12Device* device, ID3D12GraphicsCommandList* commandList, const void* vertexData, UINT64 vertexByteSize, UINT vertices, const void* indexData, UINT64 indexByteSize, UINT indices)
+	Mesh::Mesh(const std::string& name, ID3D12Device* device, ID3D12GraphicsCommandList* commandList, const void* vertexData, UINT vertexByteSize, UINT vertices, const void* indexData, UINT indexByteSize, UINT indices)
 		: m_name(name)
 	{
 		UINT64 vertexDataByteSize = vertices * vertexByteSize;

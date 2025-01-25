@@ -45,7 +45,7 @@ namespace Yume
 
 		~UploadBuffer()
 		{
-			if (m_uploadBuffer);
+			if (m_uploadBuffer)
 			{
 				m_uploadBuffer->Unmap(0, nullptr);
 			}

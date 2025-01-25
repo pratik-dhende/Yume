@@ -14,13 +14,13 @@ namespace Yume
 	class Mesh
 	{
 	public:
-		Mesh(const std::string& name, ID3D12Device* device, ID3D12GraphicsCommandList* commandList, const void* vertexData, UINT64 vertexByteSize, UINT vertices, const void* indexData, UINT64 indexByteSize, UINT indices);
+		Mesh(const std::string& name, ID3D12Device* device, ID3D12GraphicsCommandList* commandList, const void* vertexData, UINT vertexByteSize, UINT vertices, const void* indexData, UINT indexByteSize, UINT indices);
 
 		D3D12_VERTEX_BUFFER_VIEW getVertexBufferView() const
 		{
 			D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
 			vertexBufferView.BufferLocation = m_vertexBufferGPU->GetGPUVirtualAddress();
-			vertexBufferView.SizeInBytes = m_vertexBufferCPU->GetBufferSize();
+			vertexBufferView.SizeInBytes = static_cast<UINT>(m_vertexBufferCPU->GetBufferSize());
 			vertexBufferView.StrideInBytes = m_vertexByteStride;
 
 			return vertexBufferView;
@@ -30,7 +30,7 @@ namespace Yume
 		{
 			D3D12_INDEX_BUFFER_VIEW indexBufferView;
 			indexBufferView.BufferLocation = m_indexBufferGPU->GetGPUVirtualAddress();
-			indexBufferView.SizeInBytes = m_indexBufferCPU->GetBufferSize();
+			indexBufferView.SizeInBytes = static_cast<UINT>(m_indexBufferCPU->GetBufferSize());
 			indexBufferView.Format = m_indexFormat;
 
 			return indexBufferView;
