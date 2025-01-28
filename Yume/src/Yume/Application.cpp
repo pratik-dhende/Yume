@@ -29,18 +29,21 @@ namespace Yume
 
 			init();
 
-			MSG msg{};
-			while (GetMessageW(&msg, m_window->getHandle(), NULL, NULL) > 0)
+			MSG msg = {};
+			while (msg.message != WM_QUIT)
 			{
-				TranslateMessage(&msg);
-				DispatchMessageW(&msg);
-
-				update();
+				if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+					TranslateMessage(&msg);
+					DispatchMessage(&msg);
+				}
+				else {
+					update();
+				}
 			}
 		}
 		catch (const Exception& exception)
 		{
-			MessageBoxW(NULL, exception.toWString().c_str(), L"Exception", MB_OK);
+			MessageBox(NULL, exception.toWString().c_str(), L"Exception", MB_OK);
 		}
 	}
 }

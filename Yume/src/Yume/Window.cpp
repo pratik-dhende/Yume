@@ -41,7 +41,7 @@ namespace Yume
 			return 0;
 		}
 
-		return DefWindowProcW(hwnd, uMsg, wParam, lParam);
+		return DefWindowProc(hwnd, uMsg, wParam, lParam);
 	}
 
 	HWND Window::getHandle() const noexcept
@@ -67,34 +67,37 @@ namespace Yume
 	void Window::createWindow(const std::wstring& title)
 	{	
 		const std::wstring className = L"Window";
-		const HINSTANCE hDllInstance = GetModuleHandleW(nullptr);
+		const HINSTANCE hInstance = GetModuleHandle(nullptr);
 
-		YM_THROW_IF_FAILED_WIN32_EXCEPTION(hDllInstance);
+		YM_THROW_IF_FAILED_WIN32_EXCEPTION(hInstance);
 
-		WNDCLASSW windowClass{};
+		WNDCLASS windowClass{};
 		windowClass.style = CS_HREDRAW | CS_VREDRAW;
 		windowClass.lpfnWndProc = handleMessage;
 		windowClass.cbClsExtra = 0;
 		windowClass.cbWndExtra = 0;
-		windowClass.hInstance = hDllInstance;
+		windowClass.hInstance = hInstance;
 		windowClass.hIcon = LoadIcon(0, IDI_APPLICATION);
 		windowClass.hCursor = LoadCursor(0, IDC_ARROW);
 		windowClass.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH);
 		windowClass.lpszMenuName = 0;
 		windowClass.lpszClassName = className.c_str();
 
-		YM_THROW_IF_FAILED_WIN32_EXCEPTION(RegisterClassW(&windowClass));
+		YM_THROW_IF_FAILED_WIN32_EXCEPTION(RegisterClass(&windowClass));
 
-		m_hwnd = CreateWindowW(
+		RECT windowRect = { 0, 0, static_cast<LONG>(m_width), static_cast<LONG>(m_height) };
+		AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
+
+		m_hwnd = CreateWindow(
 			className.c_str(),
 			title.c_str(),
 			WS_OVERLAPPEDWINDOW,
 			CW_USEDEFAULT, CW_USEDEFAULT,
-			m_width,
-			m_height,
+			windowRect.right - windowRect.left,
+			windowRect.bottom - windowRect.top,
 			NULL,
 			NULL,
-			hDllInstance,
+			hInstance,
 			nullptr
 		);
 

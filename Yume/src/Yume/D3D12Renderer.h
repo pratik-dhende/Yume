@@ -47,7 +47,7 @@ namespace Yume
 		Microsoft::WRL::ComPtr<ID3D12CommandAllocator> m_commandAllocator;
 		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> m_commandList;
 		Microsoft::WRL::ComPtr<ID3D12CommandQueue> m_commandQueue;
-		Microsoft::WRL::ComPtr<IDXGISwapChain> m_swapChain;
+		Microsoft::WRL::ComPtr<IDXGISwapChain3> m_swapChain;
 
 		D3D12_VIEWPORT m_screenViewport;
 		D3D12_RECT m_scissorRect;

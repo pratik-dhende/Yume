@@ -12,15 +12,16 @@ namespace Yume
 	void D3D12Renderer::init(const ID3D12Window& window)
 	{
 		// TODO: Research on different versions of D3D12 functions
-
+		UINT dxgiFactoryFlags = 0;
 #ifdef YM_DEBUG 
 		{
 			Microsoft::WRL::ComPtr<ID3D12Debug> debugController;
 			YM_THROW_IF_FAILED_DX_EXCEPTION(D3D12GetDebugInterface(IID_PPV_ARGS(debugController.GetAddressOf())));
 			debugController->EnableDebugLayer();
+			dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 		}
 #endif	
-		YM_THROW_IF_FAILED_DX_EXCEPTION(CreateDXGIFactory1(IID_PPV_ARGS(m_factory.ReleaseAndGetAddressOf())));
+		YM_THROW_IF_FAILED_DX_EXCEPTION(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(m_factory.ReleaseAndGetAddressOf())));
 
 		// Use the primary adapter (TODO: Search for NVIDIA driver and use it)
 		const HRESULT primaryAdapterResult = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(m_device.ReleaseAndGetAddressOf()));
@@ -58,7 +59,10 @@ namespace Yume
 		D3D12Renderer::logAdapters();
 #endif	
 		createCommandObjects();
+
 		createSwapChain(window);
+		m_currentBackBuffer = m_swapChain->GetCurrentBackBufferIndex();
+
 		createRtvAndDsvDescriptorHeaps();
 
 		// Specify viewport and scissor rectangle
@@ -91,8 +95,8 @@ namespace Yume
 		depthStencilDesc.DepthOrArraySize = 1;
 		depthStencilDesc.Format = m_depthStencilFormat; // TODO: Change in future for new demo
 		depthStencilDesc.MipLevels = 1;
-		depthStencilDesc.SampleDesc.Count = m_4xMsaaEnabled ? 4 : 1;
-		depthStencilDesc.SampleDesc.Quality = m_4xMsaaEnabled ? m_4xMsaaQualityLevels - 1 : 0;
+		depthStencilDesc.SampleDesc.Count = 1;
+		depthStencilDesc.SampleDesc.Quality = 0;
 		depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
 		depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
@@ -130,29 +134,25 @@ namespace Yume
 		// TODO: Remove it as we will be releasing the com ptr before passing to CreateSwapChain method.
 		m_swapChain.Reset();
 
-		DXGI_SWAP_CHAIN_DESC swapChainDesc;
-		swapChainDesc.BufferDesc.Width = window.getWidth();
-		swapChainDesc.BufferDesc.Height = window.getHeight();
-		swapChainDesc.BufferDesc.RefreshRate.Numerator = 60; // TODO: Make it modifiable.
-		swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
-		swapChainDesc.BufferDesc.Format = m_backBufferFormat;
-		swapChainDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-		swapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-		swapChainDesc.SampleDesc.Count = m_4xMsaaEnabled ? 4 : 1;
-		swapChainDesc.SampleDesc.Quality = m_4xMsaaEnabled ? m_4xMsaaQualityLevels - 1 : 0;
+		Microsoft::WRL::ComPtr<IDXGISwapChain1> swapChain;
+
+		DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
+		swapChainDesc.Width = window.getWidth();
+		swapChainDesc.Height = window.getHeight();
+		swapChainDesc.Format = m_backBufferFormat;
+		swapChainDesc.SampleDesc.Count = 1;
+		swapChainDesc.SampleDesc.Quality = 0;
 		swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 		swapChainDesc.BufferCount = s_swapChainBufferCount;
-		swapChainDesc.OutputWindow = window.getHandle();
-		swapChainDesc.Windowed = true;
 		swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-		swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH; // TODO: Test this.
 
-		YM_THROW_IF_FAILED_DX_EXCEPTION(m_factory->CreateSwapChain(m_commandQueue.Get(), &swapChainDesc, m_swapChain.ReleaseAndGetAddressOf()));
+		YM_THROW_IF_FAILED_DX_EXCEPTION(m_factory->CreateSwapChainForHwnd(m_commandQueue.Get(), window.getHandle(), &swapChainDesc, nullptr, nullptr, swapChain.GetAddressOf()));
+		YM_THROW_IF_FAILED_DX_EXCEPTION(swapChain.As(&m_swapChain));
 	}
 
 	void D3D12Renderer::createRtvAndDsvDescriptorHeaps()
 	{
-		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
+		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
 		rtvHeapDesc.NumDescriptors = s_swapChainBufferCount;
 		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 		rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
