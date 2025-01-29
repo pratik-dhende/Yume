@@ -34,11 +34,44 @@ namespace Yume
 	LRESULT CALLBACK Window::handleMessage(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{	
 		switch (uMsg)
-		{
+		{	
 			case WM_SIZE:
-			{
-				WindowResizeEvent windowResizeEvent(LOWORD(lParam), HIWORD(lParam));
-				EventDispatcher::dispatchEvent(windowResizeEvent);
+			{	
+				if (wParam == SIZE_MAXIMIZED) {
+					try {
+						WindowResizeEvent windowResizeEvent(LOWORD(lParam), HIWORD(lParam));
+						EventDispatcher::dispatchEvent(windowResizeEvent);
+					}
+					catch (const Exception& exception)
+					{
+						MessageBox(NULL, exception.toWString().c_str(), L"Exception", MB_OK);
+					}
+				}
+				else if (wParam == SIZE_RESTORED) {
+					try {
+						WindowResizeEvent windowResizeEvent(LOWORD(lParam), HIWORD(lParam));
+						EventDispatcher::dispatchEvent(windowResizeEvent);
+					}
+					catch (const Exception& exception)
+					{
+						MessageBox(NULL, exception.toWString().c_str(), L"Exception", MB_OK);
+					}
+				}
+				return 0;
+			}
+
+			case WM_EXITSIZEMOVE:
+			{	
+				try {
+					RECT windowRect;
+					GetClientRect(hwnd, &windowRect);
+					WindowResizeEvent windowResizeEvent(static_cast<int>(windowRect.right - windowRect.left), static_cast<int>(windowRect.bottom - windowRect.top));
+					EventDispatcher::dispatchEvent(windowResizeEvent);
+				}
+				catch (const Exception& exception)
+				{
+					MessageBox(NULL, exception.toWString().c_str(), L"Exception", MB_OK);
+				}
 				return 0;
 			}
 
@@ -117,7 +150,6 @@ namespace Yume
 			const WindowResizeEvent& windowResizeEvent = static_cast<const WindowResizeEvent&>(event);
 			m_width = windowResizeEvent.getWidth();
 			m_height = windowResizeEvent.getHeight();
-			YM_CORE_INFO("Window::Resizing window.");
 		}
 	}
 }

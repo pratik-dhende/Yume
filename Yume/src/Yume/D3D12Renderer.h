@@ -56,6 +56,7 @@ namespace Yume
 		DXGI_FORMAT m_backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 		DXGI_FORMAT m_depthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
+		// TODO: Support MSAA in future.
 		bool m_4xMsaaEnabled = false;
 		UINT m_4xMsaaQualityLevels = 0;
 
@@ -70,6 +71,7 @@ namespace Yume
 		void logOutputDisplayModes(const Microsoft::WRL::ComPtr<IDXGIOutput>& output, const DXGI_FORMAT& format) const;
 
 		void onEvent(const Event& event);
+		void resize(const int width, const int height);
 
 	private:
 		Microsoft::WRL::ComPtr<IDXGIFactory4> m_factory;

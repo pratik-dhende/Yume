@@ -2,6 +2,7 @@
 
 #include "D3D12Renderer.h"
 #include "Log.h"
+#include "Event/ApplicationEvent.h"
 
 namespace Yume
 {	
@@ -69,54 +70,7 @@ namespace Yume
 
 		createRtvAndDsvDescriptorHeaps();
 
-		// Specify viewport and scissor rectangle
-		m_screenViewport.TopLeftX = 0.0f;
-		m_screenViewport.TopLeftY = 0.0f;
-		m_screenViewport.Width = static_cast<FLOAT>(window.getWidth());
-		m_screenViewport.Height = static_cast<FLOAT>(window.getHeight());
-		m_screenViewport.MinDepth = 0.0f;
-		m_screenViewport.MaxDepth = 1.0f;
-
-		m_scissorRect.top = 0;
-		m_scissorRect.left = 0;
-		m_scissorRect.right = window.getWidth();
-		m_scissorRect.bottom = window.getHeight();
-
-		// Create Render Target View
-		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptorHandle(m_rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
-		for (int i = 0; i < s_swapChainBufferCount; i++)
-		{
-			YM_THROW_IF_FAILED_DX_EXCEPTION(m_swapChain->GetBuffer(i, IID_PPV_ARGS(m_swapChainBuffers[i].ReleaseAndGetAddressOf())));
-			m_device->CreateRenderTargetView(m_swapChainBuffers[i].Get(), nullptr, rtvDescriptorHandle);
-			rtvDescriptorHandle.Offset(1, m_rtvDescriptorSize);
-		}
-
-		D3D12_RESOURCE_DESC depthStencilDesc;
-		depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-		depthStencilDesc.Alignment = 0;
-		depthStencilDesc.Width = window.getWidth();
-		depthStencilDesc.Height = window.getHeight();
-		depthStencilDesc.DepthOrArraySize = 1;
-		depthStencilDesc.Format = m_depthStencilFormat; // TODO: Change in future for new demo
-		depthStencilDesc.MipLevels = 1;
-		depthStencilDesc.SampleDesc.Count = 1;
-		depthStencilDesc.SampleDesc.Quality = 0;
-		depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-		depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-
-		auto depthStencilHeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-		auto depthStencilClearValue = CD3DX12_CLEAR_VALUE(m_depthStencilFormat, 1.0f, 0);
-		// TODO: Might need to change resource state (not consistent)
-		// TODO: Research on compatiblity of D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES with CreateCommittedResource as it doesn't allow me to use it
-		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateCommittedResource(&depthStencilHeapProps, D3D12_HEAP_FLAG_NONE, &depthStencilDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &depthStencilClearValue, IID_PPV_ARGS(m_depthStencilBuffer.ReleaseAndGetAddressOf())));
-
-		D3D12_DEPTH_STENCIL_VIEW_DESC dsvViewDesc;
-		dsvViewDesc.Format = m_depthStencilFormat;
-		dsvViewDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-		dsvViewDesc.Flags = D3D12_DSV_FLAG_NONE;
-		dsvViewDesc.Texture2D.MipSlice = 0;
-
-		m_device->CreateDepthStencilView(m_depthStencilBuffer.Get(), &dsvViewDesc, m_dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+		resize(window.getWidth(), window.getHeight());
 	}
 
 	void D3D12Renderer::createCommandObjects()
@@ -201,8 +155,84 @@ namespace Yume
 
 	void D3D12Renderer::onEvent(const Event& event) {
 		if (event.getEventType() == EventType::WindowResize) {
-			YM_CORE_INFO("D3D12Renderer::Resizing window.");
+			const WindowResizeEvent& windowResizeEvent = static_cast<const WindowResizeEvent&>(event);
+			resize(windowResizeEvent.getWidth(), windowResizeEvent.getHeight());
 		}
+	}
+
+	void D3D12Renderer::resize(const int width, const int height) {
+		YM_CORE_ASSERT(m_device, "No device for resizing");
+		YM_CORE_ASSERT(m_commandAllocator, "No command allocator for resizing");
+		YM_CORE_ASSERT(m_swapChain, "No swap chain for resizing");
+
+		// Ensures that references held to swapchain buffers are released
+		flushCommandQueue();
+
+		YM_THROW_IF_FAILED_DX_EXCEPTION(m_commandList->Reset(m_commandAllocator.Get(), nullptr));
+
+		for (int i = 0; i < s_swapChainBufferCount; ++i) {
+			m_swapChainBuffers[i].Reset();
+		}
+		m_depthStencilBuffer.Reset();
+
+		YM_THROW_IF_FAILED_DX_EXCEPTION(m_swapChain->ResizeBuffers(s_swapChainBufferCount, width, height, m_backBufferFormat, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
+
+		m_currentBackBuffer = m_swapChain->GetCurrentBackBufferIndex();
+
+		// Create Render Target View
+		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptorHandle(m_rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+		for (int i = 0; i < s_swapChainBufferCount; i++)
+		{
+			YM_THROW_IF_FAILED_DX_EXCEPTION(m_swapChain->GetBuffer(i, IID_PPV_ARGS(m_swapChainBuffers[i].ReleaseAndGetAddressOf())));
+			m_device->CreateRenderTargetView(m_swapChainBuffers[i].Get(), nullptr, rtvDescriptorHandle);
+			rtvDescriptorHandle.Offset(1, m_rtvDescriptorSize);
+		}
+
+		D3D12_RESOURCE_DESC depthStencilDesc;
+		depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		depthStencilDesc.Alignment = 0;
+		depthStencilDesc.Width = width;
+		depthStencilDesc.Height = height;
+		depthStencilDesc.DepthOrArraySize = 1;
+		depthStencilDesc.Format = m_depthStencilFormat; // TODO: Change in future for new demo
+		depthStencilDesc.MipLevels = 1;
+		depthStencilDesc.SampleDesc.Count = 1;
+		depthStencilDesc.SampleDesc.Quality = 0;
+		depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+		auto depthStencilHeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+		auto depthStencilClearValue = CD3DX12_CLEAR_VALUE(m_depthStencilFormat, 1.0f, 0);
+
+		// TODO: Research on compatiblity of D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES with CreateCommittedResource as it doesn't allow me to use it
+		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateCommittedResource(&depthStencilHeapProps, D3D12_HEAP_FLAG_NONE, &depthStencilDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &depthStencilClearValue, IID_PPV_ARGS(m_depthStencilBuffer.ReleaseAndGetAddressOf())));
+
+		D3D12_DEPTH_STENCIL_VIEW_DESC dsvViewDesc;
+		dsvViewDesc.Format = m_depthStencilFormat;
+		dsvViewDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+		dsvViewDesc.Flags = D3D12_DSV_FLAG_NONE;
+		dsvViewDesc.Texture2D.MipSlice = 0;
+
+		m_device->CreateDepthStencilView(m_depthStencilBuffer.Get(), &dsvViewDesc, m_dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+
+		YM_THROW_IF_FAILED_DX_EXCEPTION(m_commandList->Close());
+		ID3D12CommandList* commandLists[] = { m_commandList.Get() };
+		m_commandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
+
+		flushCommandQueue();
+
+		// Specify viewport and scissor rectangle
+		m_screenViewport.TopLeftX = 0.0f;
+		m_screenViewport.TopLeftY = 0.0f;
+		m_screenViewport.Width = static_cast<FLOAT>(width);
+		m_screenViewport.Height = static_cast<FLOAT>(height);
+		m_screenViewport.MinDepth = 0.0f;
+		m_screenViewport.MaxDepth = 1.0f;
+
+		m_scissorRect.top = 0;
+		m_scissorRect.left = 0;
+		m_scissorRect.right = width;
+		m_scissorRect.bottom = height;
 	}
 
 	void D3D12Renderer::logAdapters() const
