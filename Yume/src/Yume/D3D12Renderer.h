@@ -1,6 +1,7 @@
 #pragma once
 
 #include "directx/d3dx12.h"
+#include "Event/Event.h"
 #include <dxgi1_6.h>
 
 // TODO: Add to premake
@@ -67,6 +68,8 @@ namespace Yume
 		void logAdapters() const;
 		void logAdapterOutputs(const Microsoft::WRL::ComPtr<IDXGIAdapter>& adapter) const;
 		void logOutputDisplayModes(const Microsoft::WRL::ComPtr<IDXGIOutput>& output, const DXGI_FORMAT& format) const;
+
+		void onEvent(const Event& event);
 
 	private:
 		Microsoft::WRL::ComPtr<IDXGIFactory4> m_factory;

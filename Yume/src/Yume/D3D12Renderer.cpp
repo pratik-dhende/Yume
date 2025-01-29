@@ -1,11 +1,15 @@
 #include "ympch.h"
 
 #include "D3D12Renderer.h"
+#include "Log.h"
 
 namespace Yume
 {	
 	D3D12Renderer::D3D12Renderer(const ID3D12Window& window)
-	{
+	{	
+		EventDispatcher::registerEventHandler([&](const Event& event) {
+			this->onEvent(event);
+		});
 		init(window);
 	}
 
@@ -193,6 +197,12 @@ namespace Yume
 	void D3D12Renderer::switchBackBuffer()
 	{
 		m_currentBackBuffer = (m_currentBackBuffer + 1) % s_swapChainBufferCount;
+	}
+
+	void D3D12Renderer::onEvent(const Event& event) {
+		if (event.getEventType() == EventType::WindowResize) {
+			YM_CORE_INFO("D3D12Renderer::Resizing window.");
+		}
 	}
 
 	void D3D12Renderer::logAdapters() const

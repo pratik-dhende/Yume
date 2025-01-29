@@ -2,6 +2,7 @@
 
 #include "Core.h"
 #include "D3D12Renderer.h"
+#include "Event/Event.h"
 
 #include <string>
 
@@ -27,9 +28,8 @@ namespace Yume
 		};
 
 	public:
-		static::LRESULT handleMessage(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+		static LRESULT handleMessage(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
-		Window(const std::wstring& title);
 		Window(const std::wstring& title, const int width, const int height);
 
 		HWND getHandle() const noexcept;
@@ -49,5 +49,6 @@ namespace Yume
 		
 	private:
 		void createWindow(const std::wstring& title);
+		void onEvent(const Event& event);
 	};
 }

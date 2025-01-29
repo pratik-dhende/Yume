@@ -19,7 +19,10 @@ namespace Yume
 	}
 
 	void Application::run(int nCmdShow) 
-	{
+	{	
+#ifdef YM_DEBUG
+		_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+#endif
 		try
 		{	
 			m_window = std::make_unique<Window>(YM_ENGINE_NAME.c_str(), 1280, 720);
@@ -45,5 +48,7 @@ namespace Yume
 		{
 			MessageBox(NULL, exception.toWString().c_str(), L"Exception", MB_OK);
 		}
+
+		EventDispatcher::shutdown();
 	}
 }

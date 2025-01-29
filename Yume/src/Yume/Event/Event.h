@@ -3,6 +3,8 @@
 #include "Yume/Core.h"
 #include "Yume/Utility/Utility.h"
 
+#include <vector>
+
 #define SET_BIT(x) 1 << x
 
 namespace Yume
@@ -54,31 +56,23 @@ namespace Yume
 
 	class EventDispatcher
 	{
-		template<typename T>
-		using EventFunction = std::function<bool(T&)>;
-
 	public:
-		EventDispatcher(Event& event)
-			: m_event(event)
-		{ }
+		static void registerEventHandler(const std::function<void(const Event&)>& eventHandler) {
+			m_eventHandlers.push_back(eventHandler);
+		}
 
-		template<typename T>
-		bool dispatch(const EventFunction<T>& eventFunction)
+		static void dispatchEvent(const Event& event)
 		{
-			if (m_event.getEventType() == T::getStaticType())
-			{
-				m_event.m_handled = eventFunction(static_cast<T&>(m_event));
-				return true;
+			for (int i = 0; i < m_eventHandlers.size(); ++i) {
+				m_eventHandlers[i](event);
 			}
-			return false;
+		}
+
+		static void shutdown() {
+			m_eventHandlers.clear();
 		}
 
 	private:
-		Event& m_event;
+		static inline std::vector<std::function<void(const Event&)>> m_eventHandlers;
 	};
-
-	std::ostream& operator<<(std::ostream& os, const Event& e)
-	{
-		return os << e.toString();
-	}
 }

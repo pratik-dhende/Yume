@@ -2,6 +2,7 @@
 
 #include "Core.h"
 #include "Window.h"
+#include "Event/ApplicationEvent.h"
 
 namespace Yume
 {	
@@ -20,25 +21,32 @@ namespace Yume
 		return m_window.m_hwnd;
 	}
 
-	Window::Window(const std::wstring& title) : m_d3d12Port(*this)
-	{
-		createWindow(title);
-	}
-
 	Window::Window(const std::wstring& title, const int width, const int height)
 		: m_width(width), m_height(height), m_d3d12Port(*this)
 	{	
 		// TODO: Add minimum window size constraint
 		createWindow(title);
+		EventDispatcher::registerEventHandler([&](const Event& event) {
+			this->onEvent(event);
+		});
 	}
 
 	LRESULT CALLBACK Window::handleMessage(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-	{
+	{	
 		switch (uMsg)
 		{
-		case WM_DESTROY:
-			PostQuitMessage(0);
-			return 0;
+			case WM_SIZE:
+			{
+				WindowResizeEvent windowResizeEvent(LOWORD(lParam), HIWORD(lParam));
+				EventDispatcher::dispatchEvent(windowResizeEvent);
+				return 0;
+			}
+
+			case WM_DESTROY:
+			{
+				PostQuitMessage(0);
+				return 0;
+			}
 		}
 
 		return DefWindowProc(hwnd, uMsg, wParam, lParam);
@@ -102,6 +110,15 @@ namespace Yume
 		);
 
 		YM_THROW_IF_FAILED_WIN32_EXCEPTION(m_hwnd);
+	}
+
+	void Window::onEvent(const Event& event) {
+		if (event.getEventType() == EventType::WindowResize) {
+			const WindowResizeEvent& windowResizeEvent = static_cast<const WindowResizeEvent&>(event);
+			m_width = windowResizeEvent.getWidth();
+			m_height = windowResizeEvent.getHeight();
+			YM_CORE_INFO("Window::Resizing window.");
+		}
 	}
 }
 
