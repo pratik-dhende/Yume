@@ -7,6 +7,7 @@ class Box : public Yume::Application
 public:
 	void init() override;
 	void update() override;
+	void draw() override;
 
 private:
 	void buildCbvHeap();
@@ -15,6 +16,8 @@ private:
 	void buildShadersAndInputLayout();
 	void buildBoxGeometry();
 	void buildPipelineStateObject();
+
+	void handleMouseMove(const Yume::Event& event);
 
 private:
 	struct ObjectConstants
@@ -45,4 +48,7 @@ private:
 	DirectX::XMFLOAT4X4 m_view = Yume::identityMatrix4x4();
 	DirectX::XMFLOAT4X4 m_projection = Yume::identityMatrix4x4();
 	DirectX::XMFLOAT4X4 m_world = Yume::identityMatrix4x4();
+
+	float m_pitch = 0.0f;
+	float m_yaw = 0.0f;
 };

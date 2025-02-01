@@ -4,6 +4,9 @@
 #include "Application.h"
 #include "Window.h"
 #include "D3D12Renderer.h"
+#include "Event/MouseEvent.h"
+
+#pragma comment(lib, "DirectXTK.lib")
 
 namespace Yume 
 {
@@ -29,6 +32,11 @@ namespace Yume
 			m_window->show(nCmdShow);
 
 			m_renderer = std::make_unique<D3D12Renderer>(m_window->m_d3d12Port);
+			m_mouse = std::make_unique<DirectX::Mouse>();
+
+			m_mouse->SetWindow(m_window->getHandle());
+
+			DirectX::Mouse::ButtonStateTracker tracker;
 
 			init();
 
@@ -40,7 +48,29 @@ namespace Yume
 					DispatchMessage(&msg);
 				}
 				else {
+					auto state = m_mouse->GetState();
+					tracker.Update(state);
+
+					if (tracker.leftButton == DirectX::Mouse::ButtonStateTracker::PRESSED) {
+						m_mouse->SetMode(DirectX::Mouse::MODE_RELATIVE);
+					}
+					else if (tracker.leftButton == DirectX::Mouse::ButtonStateTracker::RELEASED) {
+						m_mouse->SetMode(DirectX::Mouse::MODE_ABSOLUTE);
+					}
+
+					if (state.leftButton) {
+						if (state.positionMode == DirectX::Mouse::MODE_RELATIVE) {
+							MouseMovedEvent mouseMovedEvent(static_cast<float>(state.x), static_cast<float>(state.y), true);
+							EventDispatcher::dispatchEvent(mouseMovedEvent);
+						}
+						else {
+							MouseMovedEvent mouseMovedEvent(static_cast<float>(state.x), static_cast<float>(state.y), false);
+							EventDispatcher::dispatchEvent(mouseMovedEvent);
+						}
+					}
+					
 					update();
+					draw();
 				}
 			}
 		}

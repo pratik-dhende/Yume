@@ -38,7 +38,8 @@ namespace Yume
 			case WM_SIZE:
 			{	
 				if (wParam == SIZE_MAXIMIZED) {
-					try {
+					try 
+					{
 						WindowResizeEvent windowResizeEvent(LOWORD(lParam), HIWORD(lParam));
 						EventDispatcher::dispatchEvent(windowResizeEvent);
 					}
@@ -48,7 +49,8 @@ namespace Yume
 					}
 				}
 				else if (wParam == SIZE_RESTORED) {
-					try {
+					try 
+					{
 						WindowResizeEvent windowResizeEvent(LOWORD(lParam), HIWORD(lParam));
 						EventDispatcher::dispatchEvent(windowResizeEvent);
 					}
@@ -62,7 +64,8 @@ namespace Yume
 
 			case WM_EXITSIZEMOVE:
 			{	
-				try {
+				try 
+				{
 					RECT windowRect;
 					GetClientRect(hwnd, &windowRect);
 					WindowResizeEvent windowResizeEvent(static_cast<int>(windowRect.right - windowRect.left), static_cast<int>(windowRect.bottom - windowRect.top));
@@ -74,6 +77,26 @@ namespace Yume
 				}
 				return 0;
 			}
+
+			case WM_MOUSEACTIVATE:
+				return MA_ACTIVATEANDEAT;
+
+			case WM_ACTIVATE:
+			case WM_ACTIVATEAPP:
+			case WM_INPUT:
+			case WM_MOUSEMOVE:
+			case WM_LBUTTONDOWN:
+			case WM_LBUTTONUP:
+			case WM_RBUTTONDOWN:
+			case WM_RBUTTONUP:
+			case WM_MBUTTONDOWN:
+			case WM_MBUTTONUP:
+			case WM_MOUSEWHEEL:
+			case WM_XBUTTONDOWN:
+			case WM_XBUTTONUP:
+			case WM_MOUSEHOVER:
+				DirectX::Mouse::ProcessMessage(uMsg, wParam, lParam);
+				break;
 
 			case WM_DESTROY:
 			{

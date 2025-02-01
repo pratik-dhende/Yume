@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Yume/Log.h"
+#include <Windows.h>
+
 #include "directx/d3dx12.h"
 
 #include <iostream>
@@ -26,6 +28,4 @@
 #include <DirectXMath.h>
 #include <DirectXColors.h>
 
-#ifdef YM_PLATFORM_WINDOWS
-	#include <windows.h>
-#endif
+#include "Mouse.h"

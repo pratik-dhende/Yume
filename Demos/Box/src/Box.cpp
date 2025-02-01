@@ -3,6 +3,10 @@
 
 void Box::init()
 {	
+	Yume::EventDispatcher::registerEventHandler([&](const Yume::Event& event) {
+		this->handleMouseMove(event);
+	});
+
 	// Puts command list in the recording state
 	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_commandList->Reset(m_renderer->m_commandAllocator.Get(), nullptr));
 
@@ -40,7 +44,11 @@ void Box::init()
 	m_objectConstants->updateBuffer(0, objectConstants);
 }
 
-void Box::update()
+void Box::update() {
+
+}
+
+void Box::draw()
 {	
 	// Clear command allocator and command list
 	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_commandAllocator->Reset());
@@ -231,4 +239,14 @@ void Box::buildPipelineStateObject()
 	pipelineStateDesc.SampleDesc.Quality = 0;
 
 	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_device->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(m_pipelineStateObject.ReleaseAndGetAddressOf())));
+}
+
+void Box::handleMouseMove(const Yume::Event& event) {
+	if (event.getEventType() == Yume::EventType::MouseMoved) {
+		const Yume::MouseMovedEvent& mouseMovedEvent = static_cast<const Yume::MouseMovedEvent&>(event);
+		if (mouseMovedEvent.isDelta()) {
+			m_pitch += mouseMovedEvent.getY();
+			m_yaw += mouseMovedEvent.getX();
+		}
+	}
 }

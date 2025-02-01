@@ -20,12 +20,14 @@ namespace Yume
 	public:
 		EVENT_CLASS_TYPE(MouseMoved)
 
-		MouseMovedEvent(const float x, const float y)
-			: m_mouseX(x), m_mouseY(y) 
+		MouseMovedEvent(const float x, const float y, const bool delta)
+			: m_mouseX(x), m_mouseY(y), m_delta(delta)
 		{ }
 
 		float getX() const noexcept { return m_mouseX; }
 		float getY() const noexcept { return m_mouseY; }
+
+		bool isDelta() const noexcept { return m_delta; }
 
 		std::string toString() const override
 		{
@@ -37,6 +39,7 @@ namespace Yume
 	private:
 		float m_mouseX;
 		float m_mouseY;
+		bool m_delta;
 	};
 
 	class MouseScrolledEvent : public MouseEvent
