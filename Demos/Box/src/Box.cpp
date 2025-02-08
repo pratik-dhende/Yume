@@ -1,10 +1,16 @@
 #include "ympch.h"
 #include "Box.h"
 
+constexpr float MOUSE_SENSITIVITY = 0.01f;
+
 void Box::init()
 {	
 	Yume::EventDispatcher::registerEventHandler([&](const Yume::Event& event) {
 		this->handleMouseMove(event);
+	});
+
+	Yume::EventDispatcher::registerEventHandler([&](const Yume::Event& event) {
+		this->handleWindowResize(event);
 	});
 
 	// Puts command list in the recording state
@@ -45,7 +51,12 @@ void Box::init()
 }
 
 void Box::update() {
+	DirectX::XMMATRIX worldViewProjection = DirectX::XMMatrixRotationY(-m_yaw) * DirectX::XMMatrixRotationX(-m_pitch) * DirectX::XMLoadFloat4x4(&m_view) * DirectX::XMLoadFloat4x4(&m_projection);
 
+	// Upload world view projection matrix
+	ObjectConstants objectConstants;
+	DirectX::XMStoreFloat4x4(&objectConstants.m_worldViewProjMatrix, XMMatrixTranspose(worldViewProjection));
+	m_objectConstants->updateBuffer(0, objectConstants);
 }
 
 void Box::draw()
@@ -245,8 +256,17 @@ void Box::handleMouseMove(const Yume::Event& event) {
 	if (event.getEventType() == Yume::EventType::MouseMoved) {
 		const Yume::MouseMovedEvent& mouseMovedEvent = static_cast<const Yume::MouseMovedEvent&>(event);
 		if (mouseMovedEvent.isDelta()) {
-			m_pitch += mouseMovedEvent.getY();
-			m_yaw += mouseMovedEvent.getX();
+			m_pitch += MOUSE_SENSITIVITY * mouseMovedEvent.getY();
+			m_yaw += MOUSE_SENSITIVITY * mouseMovedEvent.getX();
 		}
+	}
+}
+
+void Box::handleWindowResize(const Yume::Event& event) {
+	if (event.getEventType() == Yume::EventType::WindowResize) {
+		const Yume::WindowResizeEvent& windowResizeEvent = static_cast<const Yume::WindowResizeEvent&>(event);
+
+		DirectX::XMMATRIX projection = DirectX::XMMatrixPerspectiveFovLH(0.25f * DirectX::XM_PI, 1.0f * windowResizeEvent.getWidth() / windowResizeEvent.getHeight(), 1.0f, 1000.0f);
+		DirectX::XMStoreFloat4x4(&m_projection, projection);
 	}
 }

@@ -13,6 +13,7 @@
 #include "Yume/Mesh.h"
 #include "Yume/Event/Event.h"
 #include "Yume/Event/MouseEvent.h"
+#include "Yume/Event/ApplicationEvent.h"
 
 // Entry point ----------------------------------
 #include "Yume/EntryPoint.h"

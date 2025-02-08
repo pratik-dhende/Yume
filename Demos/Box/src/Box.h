@@ -18,6 +18,7 @@ private:
 	void buildPipelineStateObject();
 
 	void handleMouseMove(const Yume::Event& event);
+	void handleWindowResize(const Yume::Event& event);
 
 private:
 	struct ObjectConstants
