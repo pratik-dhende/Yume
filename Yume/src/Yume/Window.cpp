@@ -63,14 +63,6 @@ namespace Yume
 				return MA_ACTIVATEANDEAT;
 
 			case WM_ACTIVATE:
-			{
-				if (LOWORD(wParam) == WA_INACTIVE) {
-					EventDispatcher::dispatchEvent(WindowLostFocusEvent());
-				}
-				else {
-					EventDispatcher::dispatchEvent(WindowFocusEvent());
-				}
-			}
 			case WM_ACTIVATEAPP:
 			case WM_INPUT:
 			case WM_MOUSEMOVE:

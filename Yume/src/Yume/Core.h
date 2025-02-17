@@ -1,8 +1,6 @@
 #pragma once
 
 #ifdef YM_PLATFORM_WINDOWS
-	#include "Utility/Utility.h"
-
 	#ifdef YM_ENABLE_ASSERTS
 		#define YM_CORE_ASSERT(x,...) { if(!(x)) { YM_CORE_ERROR("Assertion Failed: {0}", __VA_ARGS__); __debugbreak(); } }
 		#define YM_ASSERT(x,...) { if(!(x)) { YM_ERROR("Assertion Failed: {0}", __VA_ARGS__); __debugbreak(); } }
