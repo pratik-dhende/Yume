@@ -11,6 +11,11 @@ workspace "Yume"
 
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
-include "Yume"
-include "Demos/Box"
-include "Demos/Shapes"
+group "Engine"
+    include "Yume"
+group ""
+
+group "Demos"
+    include "Demos/Box"
+    include "Demos/Shapes"
+group ""
