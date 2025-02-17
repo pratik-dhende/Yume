@@ -3,10 +3,10 @@
 #include <DirectXMath.h>
 
 class Box : public Yume::Application
-{
+{	
 public:
 	void init() override;
-	void update() override;
+	void update(const float deltaTime) override;
 	void draw() override;
 
 private:

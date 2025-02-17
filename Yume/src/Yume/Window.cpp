@@ -22,10 +22,10 @@ namespace Yume
 	}
 
 	Window::Window(const std::wstring& title, const int width, const int height)
-		: m_width(width), m_height(height), m_d3d12Port(*this)
+		: m_width(width), m_height(height), m_title(title), m_d3d12Port(*this)
 	{	
 		// TODO: Add minimum window size constraint
-		createWindow(title);
+		createWindow();
 		EventDispatcher::registerEventHandler([&](const Event& event) {
 			this->onEvent(event);
 		});
@@ -33,48 +33,29 @@ namespace Yume
 
 	LRESULT CALLBACK Window::handleMessage(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{	
-		switch (uMsg)
-		{	
+		try {
+			switch (uMsg)
+			{
 			case WM_SIZE:
-			{	
+			{
 				if (wParam == SIZE_MAXIMIZED) {
-					try 
-					{
-						WindowResizeEvent windowResizeEvent(LOWORD(lParam), HIWORD(lParam));
-						EventDispatcher::dispatchEvent(windowResizeEvent);
-					}
-					catch (const Exception& exception)
-					{
-						MessageBox(NULL, exception.toWString().c_str(), L"Exception", MB_OK);
-					}
+					WindowResizeEvent windowResizeEvent(LOWORD(lParam), HIWORD(lParam));
+					EventDispatcher::dispatchEvent(windowResizeEvent);
 				}
 				else if (wParam == SIZE_RESTORED) {
-					try 
-					{
-						WindowResizeEvent windowResizeEvent(LOWORD(lParam), HIWORD(lParam));
-						EventDispatcher::dispatchEvent(windowResizeEvent);
-					}
-					catch (const Exception& exception)
-					{
-						MessageBox(NULL, exception.toWString().c_str(), L"Exception", MB_OK);
-					}
+					WindowResizeEvent windowResizeEvent(LOWORD(lParam), HIWORD(lParam));
+					EventDispatcher::dispatchEvent(windowResizeEvent);
 				}
 				return 0;
 			}
 
 			case WM_EXITSIZEMOVE:
-			{	
-				try 
-				{
-					RECT windowRect;
-					GetClientRect(hwnd, &windowRect);
-					WindowResizeEvent windowResizeEvent(static_cast<int>(windowRect.right - windowRect.left), static_cast<int>(windowRect.bottom - windowRect.top));
-					EventDispatcher::dispatchEvent(windowResizeEvent);
-				}
-				catch (const Exception& exception)
-				{
-					MessageBox(NULL, exception.toWString().c_str(), L"Exception", MB_OK);
-				}
+			{
+				RECT windowRect;
+				GetClientRect(hwnd, &windowRect);
+				WindowResizeEvent windowResizeEvent(static_cast<int>(windowRect.right - windowRect.left), static_cast<int>(windowRect.bottom - windowRect.top));
+				EventDispatcher::dispatchEvent(windowResizeEvent);
+
 				return 0;
 			}
 
@@ -82,6 +63,14 @@ namespace Yume
 				return MA_ACTIVATEANDEAT;
 
 			case WM_ACTIVATE:
+			{
+				if (LOWORD(wParam) == WA_INACTIVE) {
+					EventDispatcher::dispatchEvent(WindowLostFocusEvent());
+				}
+				else {
+					EventDispatcher::dispatchEvent(WindowFocusEvent());
+				}
+			}
 			case WM_ACTIVATEAPP:
 			case WM_INPUT:
 			case WM_MOUSEMOVE:
@@ -103,6 +92,10 @@ namespace Yume
 				PostQuitMessage(0);
 				return 0;
 			}
+			}
+		}
+		catch(const Exception& exception) {
+			MessageBox(NULL, exception.toWString().c_str(), L"Exception", MB_OK);
 		}
 
 		return DefWindowProc(hwnd, uMsg, wParam, lParam);
@@ -123,12 +116,16 @@ namespace Yume
 		return m_height;
 	}
 
+	const std::wstring& Window::getTitle() const noexcept{
+		return m_title;
+	}
+
 	void Window::show(const int nCmdShow) const
 	{
 		ShowWindow(m_hwnd, nCmdShow);
 	}
 
-	void Window::createWindow(const std::wstring& title)
+	void Window::createWindow()
 	{	
 		const std::wstring className = L"Window";
 		const HINSTANCE hInstance = GetModuleHandle(nullptr);
@@ -154,7 +151,7 @@ namespace Yume
 
 		m_hwnd = CreateWindow(
 			className.c_str(),
-			title.c_str(),
+			m_title.c_str(),
 			WS_OVERLAPPEDWINDOW,
 			CW_USEDEFAULT, CW_USEDEFAULT,
 			windowRect.right - windowRect.left,

@@ -5,12 +5,13 @@
 #include "Window.h"
 #include "D3D12Renderer.h"
 #include "Event/MouseEvent.h"
+#include "Event/ApplicationEvent.h"
+#include "StepTimer.h"
 
 #pragma comment(lib, "DirectXTK.lib")
 
 namespace Yume 
 {
-
 	Application::Application() 
 	{
 
@@ -31,9 +32,11 @@ namespace Yume
 			m_window = std::make_unique<Window>(YM_ENGINE_NAME.c_str(), 1280, 720);
 			m_window->show(nCmdShow);
 
-			m_renderer = std::make_unique<D3D12Renderer>(m_window->m_d3d12Port);
-			m_mouse = std::make_unique<DirectX::Mouse>();
+			m_timer = std::make_unique<DX::StepTimer>();
 
+			m_renderer = std::make_unique<D3D12Renderer>(m_window->m_d3d12Port);
+
+			m_mouse = std::make_unique<DirectX::Mouse>();
 			m_mouse->SetWindow(m_window->getHandle());
 
 			DirectX::Mouse::ButtonStateTracker tracker;
@@ -69,7 +72,15 @@ namespace Yume
 						}
 					}
 					
-					update();
+					const double millisecondsPerFrame = 1000.0 / m_timer->GetFramesPerSecond();
+					const std::wstring windowTitle = m_window->getTitle() + L"    FPS: " + std::to_wstring(m_timer->GetFramesPerSecond()) + L"    MSPF: " + std::to_wstring(millisecondsPerFrame);
+
+					SetWindowText(m_window->getHandle(), windowTitle.c_str());
+
+					m_timer->Tick([&]() {
+						update(m_timer->GetElapsedSeconds());
+					});
+					
 					draw();
 				}
 			}

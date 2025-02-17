@@ -50,7 +50,7 @@ void Box::init()
 	m_objectConstants->updateBuffer(0, objectConstants);
 }
 
-void Box::update() {
+void Box::update(const float deltaTime) {
 	DirectX::XMMATRIX worldViewProjection = DirectX::XMMatrixRotationY(-m_yaw) * DirectX::XMMatrixRotationX(-m_pitch) * DirectX::XMLoadFloat4x4(&m_view) * DirectX::XMLoadFloat4x4(&m_projection);
 
 	// Upload world view projection matrix

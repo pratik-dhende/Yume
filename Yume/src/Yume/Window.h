@@ -35,6 +35,7 @@ namespace Yume
 		HWND getHandle() const noexcept;
 		int getWidth() const noexcept;
 		int getHeight() const noexcept;
+		const std::wstring& getTitle() const noexcept;
 
 		void show(const int nCmdShow) const;
 
@@ -46,9 +47,11 @@ namespace Yume
 
 		int m_width = 1280;
 		int m_height = 720;
+
+		std::wstring m_title;
 		
 	private:
-		void createWindow(const std::wstring& title);
+		void createWindow();
 		void onEvent(const Event& event);
 	};
 }
