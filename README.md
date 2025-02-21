@@ -1,14 +1,25 @@
 # Yume
 ## DirectX 12 Graphics Engine
-The engine is currently in a very early stage with following features:
-- Framework for rendering a box
+The engine is currently supports following features:
+- DirectX 12 Framework
 - Logging System
+- Event System
+- Timer System
+- Mouse Input System
 - Premake Meta Build System
 
-## Updates
-- I am currently working on the [feature/dx12-shapes-waves-demo](https://github.com/pratik-dhende/Yume/tree/feature/dx12-shapes-waves-demo) branch
+## Build instructions
+(**Note**: Only supports Windows)
+- Clone the repo
+- Run `setup.bat` file
 
-## Renders
-![YumeFirstRender](https://github.com/user-attachments/assets/a612889b-f93e-4133-b70b-f520d7f5bc86)
+## Demos
+- Interactive Box Demo - Demonstrates mouse-controlled box rotation
+
+https://github.com/user-attachments/assets/6d8af7cf-a09a-4b34-a1f8-aa0a1a0185a0
+
+
+
+
 
 
