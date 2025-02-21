@@ -1,6 +1,6 @@
 # Yume
 ## DirectX 12 Graphics Engine
-The engine is currently supports following features:
+The engine currently supports following features:
 - DirectX 12 Framework
 - Logging System
 - Event System
