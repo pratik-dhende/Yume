@@ -32,7 +32,7 @@ namespace Yume
 		ID3D12Resource* getCurrentBackBuffer() const { return m_swapChainBuffers[m_currentBackBuffer].Get(); }
 
 		D3D12_CPU_DESCRIPTOR_HANDLE getCurrentBackBufferView() const { 
-			return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), m_currentBackBuffer, m_rtvDescriptorSize);
+			return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), m_currentBackBuffer, m_rtvDescriptorHandleIncrementSize);
 		}
 
 		D3D12_CPU_DESCRIPTOR_HANDLE getDepthStencilView() const
@@ -83,9 +83,9 @@ namespace Yume
 		Microsoft::WRL::ComPtr<ID3D12Resource> m_swapChainBuffers[s_swapChainBufferCount];
 		Microsoft::WRL::ComPtr<ID3D12Resource> m_depthStencilBuffer;
 
-		UINT m_rtvDescriptorSize = 0;
-		UINT m_dsvDescriptorSize = 0;
-		UINT m_cbvSrvUavDescriptorSize = 0;
+		UINT m_rtvDescriptorHandleIncrementSize = 0;
+		UINT m_dsvDescriptorHandleIncrementSize = 0;
+		UINT m_cbvSrvUavDescriptorHandleIncrementSize = 0;
 		UINT64 m_currentFence = 0;
 		int m_currentBackBuffer = 0;
 

@@ -41,9 +41,9 @@ namespace Yume
 
 		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.ReleaseAndGetAddressOf())));
 
-		m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-		m_dsvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-		m_cbvSrvUavDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		m_rtvDescriptorHandleIncrementSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		m_dsvDescriptorHandleIncrementSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+		m_cbvSrvUavDescriptorHandleIncrementSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 		// Check 4X MSAA quality support for our back buffer format.
 		// All Direct3D 11 capable devices support 4X MSAA for all render target formats, so we only need to check quality support.
@@ -185,7 +185,7 @@ namespace Yume
 		{
 			YM_THROW_IF_FAILED_DX_EXCEPTION(m_swapChain->GetBuffer(i, IID_PPV_ARGS(m_swapChainBuffers[i].ReleaseAndGetAddressOf())));
 			m_device->CreateRenderTargetView(m_swapChainBuffers[i].Get(), nullptr, rtvDescriptorHandle);
-			rtvDescriptorHandle.Offset(1, m_rtvDescriptorSize);
+			rtvDescriptorHandle.Offset(1, m_rtvDescriptorHandleIncrementSize);
 		}
 
 		D3D12_RESOURCE_DESC depthStencilDesc;
