@@ -1,6 +1,9 @@
 @echo off
 setlocal
 
+@REM Clone submodules
+call git submodule update --init --recursive
+
 @REM Set up the version of Premake to download
 set "premakeVersion=5.0.0-beta2"
 
