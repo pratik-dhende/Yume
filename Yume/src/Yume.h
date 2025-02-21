@@ -14,6 +14,7 @@
 #include "Yume/Event/Event.h"
 #include "Yume/Event/MouseEvent.h"
 #include "Yume/Event/ApplicationEvent.h"
+#include "Yume/StepTimer.h"
 
 // Entry point ----------------------------------
 #include "Yume/EntryPoint.h"

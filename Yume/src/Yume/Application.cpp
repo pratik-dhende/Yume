@@ -32,7 +32,7 @@ namespace Yume
 			m_window = std::make_unique<Window>(YM_ENGINE_NAME.c_str(), 1280, 720);
 			m_window->show(nCmdShow);
 
-			m_timer = std::make_unique<DX::StepTimer>();
+			m_timer = std::make_unique<StepTimer>();
 
 			m_renderer = std::make_unique<D3D12Renderer>(m_window->m_d3d12Port);
 
@@ -78,7 +78,7 @@ namespace Yume
 					SetWindowText(m_window->getHandle(), windowTitle.c_str());
 
 					m_timer->Tick([&]() {
-						update(m_timer->GetElapsedSeconds());
+						update(*m_timer);
 					});
 					
 					draw();

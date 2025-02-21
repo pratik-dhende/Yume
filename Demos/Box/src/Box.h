@@ -6,7 +6,7 @@ class Box : public Yume::Application
 {	
 public:
 	void init() override;
-	void update(const float deltaTime) override;
+	void update(const Yume::StepTimer& coreTimer) override;
 	void draw() override;
 
 private:
