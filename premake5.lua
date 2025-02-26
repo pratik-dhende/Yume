@@ -17,4 +17,5 @@ group ""
 
 group "Demos"
     include "Demos/Box"
+    include "Demos/Shapes"
 group ""
