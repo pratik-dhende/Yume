@@ -66,7 +66,7 @@ namespace Yume
 		createCommandObjects();
 
 		createSwapChain(window);
-		m_currentBackBuffer = m_swapChain->GetCurrentBackBufferIndex();
+		m_currentBackBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
 
 		createRtvAndDsvDescriptorHeaps();
 
@@ -125,32 +125,39 @@ namespace Yume
 		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(m_dsvDescriptorHeap.ReleaseAndGetAddressOf())));
 	}
 
-	void D3D12Renderer::flushCommandQueue()
-	{	
+	void D3D12Renderer::signalFence() {
 		// Advance the fence value to mark commands up to this fence point.
-		m_currentFence++;
+		++m_currentFenceValue;
 
 		// Add an instruction to the command queue to set a new fence point.  Because we 
 		// are on the GPU timeline, the new fence point won't be set until the GPU finishes
 		// processing all the commands prior to this Signal().
-		YM_THROW_IF_FAILED_DX_EXCEPTION(m_commandQueue->Signal(m_fence.Get(), m_currentFence));
+		YM_THROW_IF_FAILED_DX_EXCEPTION(m_commandQueue->Signal(m_fence.Get(), m_currentFenceValue));
+	}
 
+	void D3D12Renderer::sync(const UINT64 m_fenceValue) {
 		// Wait until the GPU has completed commands up to this fence point.
-		if (m_fence->GetCompletedValue() < m_currentFence)
+		if (m_fence->GetCompletedValue() < m_fenceValue)
 		{
 			const HANDLE fenceEventHandle = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
 			YM_THROW_IF_FAILED_WIN32_EXCEPTION(fenceEventHandle);
 
-			YM_THROW_IF_FAILED_DX_EXCEPTION(m_fence->SetEventOnCompletion(m_currentFence, fenceEventHandle));
+			YM_THROW_IF_FAILED_DX_EXCEPTION(m_fence->SetEventOnCompletion(m_fenceValue, fenceEventHandle));
 
 			WaitForSingleObject(fenceEventHandle, INFINITE);
 			CloseHandle(fenceEventHandle);
 		}
 	}
 
+	void D3D12Renderer::flushCommandQueue()
+	{	
+		signalFence();
+		sync(m_currentFenceValue);
+	}
+
 	void D3D12Renderer::switchBackBuffer()
 	{
-		m_currentBackBuffer = (m_currentBackBuffer + 1) % s_swapChainBufferCount;
+		m_currentBackBufferIndex = (m_currentBackBufferIndex + 1) % s_swapChainBufferCount;
 	}
 
 	void D3D12Renderer::onEvent(const Event& event) {
@@ -177,7 +184,7 @@ namespace Yume
 
 		YM_THROW_IF_FAILED_DX_EXCEPTION(m_swapChain->ResizeBuffers(s_swapChainBufferCount, width, height, m_backBufferFormat, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
 
-		m_currentBackBuffer = m_swapChain->GetCurrentBackBufferIndex();
+		m_currentBackBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
 
 		// Create Render Target View
 		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescriptorHandle(m_rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());

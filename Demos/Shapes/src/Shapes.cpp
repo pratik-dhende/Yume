@@ -1,7 +1,10 @@
 #include "ympch.h"
 #include "Shapes.h"
+#include "FrameResource.h"
+#include "RenderItem.h"
 
 constexpr float MOUSE_SENSITIVITY = 0.01f;
+constexpr int totalBufferFrameResources = 3;
 
 void Shapes::init()
 {
@@ -16,12 +19,12 @@ void Shapes::init()
 	// Puts command list in the recording state
 	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_commandList->Reset(m_renderer->m_commandAllocator.Get(), nullptr));
 
-	// Initialize
+	buildRenderItems();
+	buildBufferFrameResources();
 	buildCbvHeap();
-	buildConstantBuffer();
+	buildConstantBuffers();
 	buildRootSignature();
 	buildShadersAndInputLayout();
-	buildBoxGeometry();
 	buildPipelineStateObject();
 
 	// Execute the initialization commands
@@ -31,39 +34,30 @@ void Shapes::init()
 
 	m_renderer->flushCommandQueue();
 
-	// Create world view projection matrix
-	DirectX::XMVECTOR position = DirectX::XMVectorSet(0.0f, 0.0f, -5.0f, 1.0f);
-	DirectX::XMVECTOR target = DirectX::XMVectorZero();
-	DirectX::XMVECTOR up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-
-	DirectX::XMMATRIX view = DirectX::XMMatrixLookAtLH(position, target, up);
-	DirectX::XMStoreFloat4x4(&m_view, view);
-
-	DirectX::XMMATRIX projection = DirectX::XMMatrixPerspectiveFovLH(0.25f * DirectX::XM_PI, 1.0f * m_window->getWidth() / m_window->getHeight(), 1.0f, 1000.0f);
+	DirectX::XMMATRIX projection = DirectX::XMMatrixPerspectiveFovLH(DirectX::XM_PIDIV4, 1.0f * m_window->getWidth() / m_window->getHeight(), m_nearZ, m_farZ);
 	DirectX::XMStoreFloat4x4(&m_projection, projection);
-
-	DirectX::XMMATRIX worldViewProjection = DirectX::XMLoadFloat4x4(&m_world) * DirectX::XMLoadFloat4x4(&m_view) * DirectX::XMLoadFloat4x4(&m_projection);
-
-	// Upload world view projection matrix
-	ObjectConstants objectConstants;
-	DirectX::XMStoreFloat4x4(&objectConstants.m_worldViewProjMatrix, XMMatrixTranspose(worldViewProjection));
-	m_objectConstants->updateBuffer(0, objectConstants);
 }
 
 void Shapes::update(const Yume::StepTimer& coreTimer) {
-	DirectX::XMMATRIX worldViewProjection = DirectX::XMMatrixRotationY(-m_yaw) * DirectX::XMMatrixRotationX(-m_pitch) * DirectX::XMLoadFloat4x4(&m_view) * DirectX::XMLoadFloat4x4(&m_projection);
+	updateCamera();
 
-	// Upload world view projection matrix
-	ObjectConstants objectConstants;
-	DirectX::XMStoreFloat4x4(&objectConstants.m_worldViewProjMatrix, XMMatrixTranspose(worldViewProjection));
-	m_objectConstants->updateBuffer(0, objectConstants);
+	m_currentFrameResourceIndex = (m_currentFrameResourceIndex + 1) % totalBufferFrameResources;
+
+	if (m_bufferFrameResources[m_currentFrameResourceIndex]->m_fenceValue > 0 && m_renderer->getGPUFenceValue() < m_bufferFrameResources[m_currentFrameResourceIndex]->m_fenceValue) {
+		m_renderer->sync(m_bufferFrameResources[m_currentFrameResourceIndex]->m_fenceValue);
+	}
+
+	updateObjectConstants();
+	updatePassConstants(coreTimer);
 }
 
 void Shapes::draw()
-{
+{	
+	auto commandAllocator = m_bufferFrameResources[m_currentFrameResourceIndex]->m_commandAllocator;
+
 	// Clear command allocator and command list
-	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_commandAllocator->Reset());
-	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_commandList->Reset(m_renderer->m_commandAllocator.Get(), m_pipelineStateObject.Get()));
+	YM_THROW_IF_FAILED_DX_EXCEPTION(commandAllocator->Reset());
+	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_commandList->Reset(commandAllocator.Get(), m_pipelineStateObject.Get()));
 
 	// Set the view port and scissor rects
 	m_renderer->m_commandList->RSSetViewports(1, &m_renderer->m_screenViewport);
@@ -89,18 +83,12 @@ void Shapes::draw()
 	// Set root signature
 	m_renderer->m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
 
-	// Set vertex buffer and primitive type
-	auto vertexBufferView = m_boxMesh->getVertexBufferView();
-	auto indexBufferView = m_boxMesh->getIndexBufferView();
-	m_renderer->m_commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-	m_renderer->m_commandList->IASetIndexBuffer(&indexBufferView);
-	m_renderer->m_commandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	// Set pass constants
+	CD3DX12_GPU_DESCRIPTOR_HANDLE cbvGPUHeapHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
+	cbvGPUHeapHandle.Offset(static_cast<int>(m_renderItems.size()) * totalBufferFrameResources + m_currentFrameResourceIndex, m_renderer->getCbvSrvUavDescriptorHandleIncrementSize());
+	m_renderer->m_commandList->SetGraphicsRootDescriptorTable(1, cbvGPUHeapHandle);
 
-	// Set constant buffer
-	m_renderer->m_commandList->SetGraphicsRootDescriptorTable(0, m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
-
-	// Draw
-	m_renderer->m_commandList->DrawIndexedInstanced(m_boxMesh->subMeshes["box"].indexCount, 1, 0, 0, 0);
+	drawRenderItems();
 
 	// Switch from target to present
 	auto targetPresentTransition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderer->getCurrentBackBuffer(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -118,74 +106,108 @@ void Shapes::draw()
 	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_swapChain->Present(0, 0));
 	m_renderer->switchBackBuffer();
 
-	m_renderer->flushCommandQueue();
+	m_renderer->signalFence();
+	m_bufferFrameResources[m_currentFrameResourceIndex]->m_fenceValue = m_renderer->getCPUFenceValue();
 }
 
 std::unique_ptr<Yume::Application> Yume::createApplication() {
 	return std::make_unique<Shapes>();
 }
 
-void Shapes::buildCbvHeap()
-{
-	D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc;
-	cbvHeapDesc.NumDescriptors = 1;
-	cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-	cbvHeapDesc.NodeMask = 0;
-	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(m_cbvHeap.ReleaseAndGetAddressOf())));
-}
+void Shapes::drawRenderItems() {
+	for (const auto& renderItem : m_renderItems) {
+		
+		auto vertexBufferView = renderItem->m_mesh->getVertexBufferView();
+		auto indexBufferView = renderItem->m_mesh->getIndexBufferView();
+		m_renderer->m_commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+		m_renderer->m_commandList->IASetIndexBuffer(&indexBufferView);
+		m_renderer->m_commandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-void Shapes::buildConstantBuffer()
-{
-	m_objectConstants = std::make_unique<Yume::UploadBuffer<ObjectConstants>>(m_renderer->m_device.Get(), 1, true);
+		// Set Object Constants
+		CD3DX12_GPU_DESCRIPTOR_HANDLE cbvGPUHeapHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
+		cbvGPUHeapHandle.Offset(m_currentFrameResourceIndex * static_cast<int>(m_renderItems.size()) + renderItem->m_constantBufferOffset, m_renderer->getCbvSrvUavDescriptorHandleIncrementSize());
 
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
-	cbvDesc.BufferLocation = m_objectConstants->getResource()->GetGPUVirtualAddress();
-	cbvDesc.SizeInBytes = Yume::nextMultiple256(sizeof(ObjectConstants));
+		m_renderer->m_commandList->SetGraphicsRootDescriptorTable(0, cbvGPUHeapHandle);
 
-	m_renderer->m_device->CreateConstantBufferView(&cbvDesc, m_cbvHeap->GetCPUDescriptorHandleForHeapStart());
-}
-
-void Shapes::buildRootSignature()
-{
-	CD3DX12_DESCRIPTOR_RANGE descTableRanges[1];
-
-	// TODO: Fix the "Using uninitialized memory"
-	descTableRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-
-	CD3DX12_ROOT_PARAMETER rootParameters[1];
-	rootParameters[0].InitAsDescriptorTable(1, descTableRanges);
-
-	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(1, rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
-	Microsoft::WRL::ComPtr<ID3DBlob> serializedRoot;
-	Microsoft::WRL::ComPtr<ID3DBlob> serializedRootError;
-
-	HRESULT hrSerializedRoot = D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1_0, serializedRoot.GetAddressOf(), serializedRootError.GetAddressOf());
-
-	if (serializedRootError)
-	{
-		YM_ERROR(static_cast<char*>(serializedRootError->GetBufferPointer()));
+		auto renderingMesh = renderItem->m_mesh->subMeshes["box"];
+		m_renderer->m_commandList->DrawIndexedInstanced(renderingMesh.indexCount, 1, renderingMesh.startIndex, renderingMesh.baseVertexLocation, 0);
 	}
-
-	YM_THROW_IF_FAILED_DX_EXCEPTION(hrSerializedRoot);
-
-	m_renderer->m_device->CreateRootSignature(0, serializedRoot->GetBufferPointer(), serializedRoot->GetBufferSize(), IID_PPV_ARGS(m_rootSignature.ReleaseAndGetAddressOf()));
 }
 
-void Shapes::buildShadersAndInputLayout()
-{
-	m_vsByteCode = m_renderer->compileShader(L"Shaders/VS.hlsl", nullptr, "VS", "vs_5_0");
-	m_psByteCode = m_renderer->compileShader(L"Shaders/PS.hlsl", nullptr, "PS", "ps_5_0");
+void Shapes::updateCamera() {
+	m_cameraPhi -= m_mouseXDelta;
+	m_cameraTheta -= m_mouseYDelta;
+	m_cameraTheta = std::clamp(m_cameraTheta, 0.1f, DirectX::XM_PI - 0.1f);
 
-	m_inputLayout = {
-		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-		{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
-	};
+	m_cameraPositionWorld.x = m_cameraRadius * std::sin(m_cameraTheta) * std::cos(m_cameraPhi);
+	m_cameraPositionWorld.y = m_cameraRadius * std::cos(m_cameraTheta);
+	m_cameraPositionWorld.z = m_cameraRadius * std::sin(m_cameraTheta) * std::sin(m_cameraPhi);
+
+	DirectX::XMVECTOR position = DirectX::XMVectorSet(m_cameraPositionWorld.x, m_cameraPositionWorld.y, m_cameraPositionWorld.z, 1.0f);
+	DirectX::XMVECTOR target = DirectX::XMVectorZero();
+	DirectX::XMVECTOR up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+	DirectX::XMMATRIX view = DirectX::XMMatrixLookAtLH(position, target, up);
+	DirectX::XMStoreFloat4x4(&m_view, view);
 }
 
-void Shapes::buildBoxGeometry()
-{
+void Shapes::updateObjectConstants() {
+	for (const auto& renderItem : m_renderItems) {
+		if (renderItem->m_objectConstantsUpdates > 0) {
+			ObjectConstants objectConstants;
+			objectConstants.m_world = renderItem->m_world;
+			m_bufferFrameResources[m_currentFrameResourceIndex]->m_objectConstants->updateBuffer(renderItem->m_constantBufferOffset, objectConstants);
+
+			--renderItem->m_objectConstantsUpdates;
+		}
+	}
+}
+
+void Shapes::updatePassConstants(const Yume::StepTimer& timer) {
+	PassConstants passConstants;
+	passConstants.m_cameraPositionWorld = m_cameraPositionWorld;
+	passConstants.m_farZ = m_farZ;
+	passConstants.m_nearZ = m_nearZ;
+
+	auto projection = DirectX::XMLoadFloat4x4(&m_projection);
+	auto view = DirectX::XMLoadFloat4x4(&m_view);
+	auto viewProjection = view * projection;
+
+	auto projectionDeterminant = DirectX::XMMatrixDeterminant(projection);
+	auto viewDeterminant = DirectX::XMMatrixDeterminant(view);
+	auto viewProjectionDeterminant = DirectX::XMMatrixDeterminant(viewProjection);
+
+	auto inverseView = DirectX::XMMatrixInverse(&viewDeterminant, view);
+	auto inverseProjection = DirectX::XMMatrixInverse(&projectionDeterminant, projection);
+	auto inverseViewProjection = DirectX::XMMatrixInverse(&viewProjectionDeterminant, viewProjection);
+
+	DirectX::XMStoreFloat4x4(&passConstants.m_projection, DirectX::XMMatrixTranspose(projection));
+	DirectX::XMStoreFloat4x4(&passConstants.m_inverseProjection, DirectX::XMMatrixTranspose(inverseProjection));
+	DirectX::XMStoreFloat4x4(&passConstants.m_view, DirectX::XMMatrixTranspose(view));
+	DirectX::XMStoreFloat4x4(&passConstants.m_inverseView, DirectX::XMMatrixTranspose(inverseView));
+	DirectX::XMStoreFloat4x4(&passConstants.m_viewProjection, DirectX::XMMatrixTranspose(viewProjection));
+	DirectX::XMStoreFloat4x4(&passConstants.m_inverseViewProjection, DirectX::XMMatrixTranspose(inverseViewProjection));
+
+	passConstants.m_renderTargetSize = DirectX::XMFLOAT2(m_renderer->getRenderTargetWidth(), m_renderer->getRenderTargetHeight());
+	passConstants.m_inverseRenderTargetSize = DirectX::XMFLOAT2(1.0f / m_renderer->getRenderTargetWidth(), 1.0f / m_renderer->getRenderTargetHeight());
+
+	passConstants.m_totalTime = timer.GetTotalSeconds();
+	passConstants.m_deltaTime = timer.GetElapsedSeconds();
+
+	m_bufferFrameResources[m_currentFrameResourceIndex]->m_passConstants->updateBuffer(0, passConstants);
+}
+
+void Shapes::buildBufferFrameResources() {
+	m_bufferFrameResources.reserve(totalBufferFrameResources);
+
+	for (int i = 0; i < totalBufferFrameResources; ++i) {
+		m_bufferFrameResources.emplace_back(std::make_unique<FrameResource>(m_renderer->m_device.Get(), static_cast<int>(m_renderItems.size()), 1));
+	}
+}
+
+void Shapes::buildRenderItems() {
+	m_renderItems.emplace_back(std::make_unique<RenderItem>());
+
 	std::array<Vertex, 8> vertices = {
 		Vertex({ DirectX::XMFLOAT3(-1.0f, -1.0f, -1.0f), DirectX::XMFLOAT4(DirectX::Colors::White) }),
 		Vertex({ DirectX::XMFLOAT3(-1.0f, +1.0f, -1.0f), DirectX::XMFLOAT4(DirectX::Colors::Black) }),
@@ -224,9 +246,95 @@ void Shapes::buildBoxGeometry()
 		4, 3, 7
 	};
 
-	m_boxMesh = std::make_unique<Yume::Mesh>("BoxMesh", m_renderer->m_device.Get(), m_renderer->m_commandList.Get(), vertices.data(), sizeof(vertices[0]), vertices.size(), indices.data(), sizeof(indices[0]), indices.size());
+	m_renderItems.back()->m_objectConstantsUpdates = totalBufferFrameResources;
 
-	m_boxMesh->subMeshes["box"] = Yume::SubMesh{ static_cast<UINT>(indices.size()), 0, 0 };
+	m_renderItems.back()->m_mesh = std::make_unique<Yume::Mesh>("BoxMesh", m_renderer->m_device.Get(), m_renderer->m_commandList.Get(), vertices.data(), sizeof(vertices[0]), vertices.size(), indices.data(), sizeof(indices[0]), indices.size());
+	m_renderItems.back()->m_mesh->subMeshes["box"] = Yume::SubMesh{ static_cast<UINT>(indices.size()), 0, 0 };
+}
+
+void Shapes::buildCbvHeap()
+{	
+	D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc;
+	cbvHeapDesc.NumDescriptors = (static_cast<int>(m_renderItems.size()) + 1) * totalBufferFrameResources;
+	cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	cbvHeapDesc.NodeMask = 0;
+	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(m_cbvHeap.ReleaseAndGetAddressOf())));
+}
+
+void Shapes::buildConstantBuffers()
+{	
+	const int totalRenderItems = static_cast<int>(m_renderItems.size());
+	CD3DX12_CPU_DESCRIPTOR_HANDLE cbvCPUDescriptorHandle(m_cbvHeap->GetCPUDescriptorHandleForHeapStart());
+
+	auto objectConstantsSize = Yume::nextMultiple256(sizeof(ObjectConstants));
+
+	for (int i = 0; i < totalBufferFrameResources; ++i) {
+		auto uploadBuffer = m_bufferFrameResources[i]->m_objectConstants->getResource();
+
+		for (const auto& renderItem : m_renderItems) {
+			D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
+			cbvDesc.BufferLocation = uploadBuffer->GetGPUVirtualAddress() + renderItem->m_constantBufferOffset * objectConstantsSize;
+			cbvDesc.SizeInBytes = objectConstantsSize;
+
+			m_renderer->m_device->CreateConstantBufferView(&cbvDesc, cbvCPUDescriptorHandle);
+
+			cbvCPUDescriptorHandle.Offset(1, m_renderer->getCbvSrvUavDescriptorHandleIncrementSize());
+		}
+	}
+
+	auto passConstantsSize = Yume::nextMultiple256(sizeof(PassConstants));
+	for (int i = 0; i < totalBufferFrameResources; ++i) {
+		auto uploadBuffer = m_bufferFrameResources[i]->m_passConstants->getResource();
+
+		D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
+		cbvDesc.BufferLocation = uploadBuffer->GetGPUVirtualAddress();
+		cbvDesc.SizeInBytes = passConstantsSize;
+
+		m_renderer->m_device->CreateConstantBufferView(&cbvDesc, cbvCPUDescriptorHandle);
+
+		cbvCPUDescriptorHandle.Offset(1, m_renderer->getCbvSrvUavDescriptorHandleIncrementSize());
+	}
+}
+
+void Shapes::buildRootSignature()
+{
+	CD3DX12_DESCRIPTOR_RANGE descTable0Range;
+	descTable0Range.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+
+	CD3DX12_DESCRIPTOR_RANGE descTable1Range;
+	descTable1Range.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
+
+	CD3DX12_ROOT_PARAMETER rootParameters[2];
+	rootParameters[0].InitAsDescriptorTable(1, &descTable0Range);
+	rootParameters[1].InitAsDescriptorTable(1, &descTable1Range);
+
+	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(2, rootParameters, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+	Microsoft::WRL::ComPtr<ID3DBlob> serializedRoot;
+	Microsoft::WRL::ComPtr<ID3DBlob> serializedRootError;
+
+	HRESULT hrSerializedRoot = D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1_0, serializedRoot.GetAddressOf(), serializedRootError.GetAddressOf());
+
+	if (serializedRootError)
+	{
+		YM_ERROR(static_cast<char*>(serializedRootError->GetBufferPointer()));
+	}
+
+	YM_THROW_IF_FAILED_DX_EXCEPTION(hrSerializedRoot);
+
+	m_renderer->m_device->CreateRootSignature(0, serializedRoot->GetBufferPointer(), serializedRoot->GetBufferSize(), IID_PPV_ARGS(m_rootSignature.ReleaseAndGetAddressOf()));
+}
+
+void Shapes::buildShadersAndInputLayout()
+{
+	m_vsByteCode = m_renderer->compileShader(L"Shaders/VS.hlsl", nullptr, "VS", "vs_5_0");
+	m_psByteCode = m_renderer->compileShader(L"Shaders/PS.hlsl", nullptr, "PS", "ps_5_0");
+
+	m_inputLayout = {
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+		{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
+	};
 }
 
 void Shapes::buildPipelineStateObject()
@@ -256,8 +364,8 @@ void Shapes::handleMouseMove(const Yume::Event& event) {
 	if (event.getEventType() == Yume::EventType::MouseMoved) {
 		const Yume::MouseMovedEvent& mouseMovedEvent = static_cast<const Yume::MouseMovedEvent&>(event);
 		if (mouseMovedEvent.isDelta()) {
-			m_pitch += MOUSE_SENSITIVITY * mouseMovedEvent.getY();
-			m_yaw += MOUSE_SENSITIVITY * mouseMovedEvent.getX();
+			m_mouseXDelta = MOUSE_SENSITIVITY * mouseMovedEvent.getX();
+			m_mouseYDelta = MOUSE_SENSITIVITY * mouseMovedEvent.getY();
 		}
 	}
 }
@@ -266,7 +374,7 @@ void Shapes::handleWindowResize(const Yume::Event& event) {
 	if (event.getEventType() == Yume::EventType::WindowResize) {
 		const Yume::WindowResizeEvent& windowResizeEvent = static_cast<const Yume::WindowResizeEvent&>(event);
 
-		DirectX::XMMATRIX projection = DirectX::XMMatrixPerspectiveFovLH(0.25f * DirectX::XM_PI, 1.0f * windowResizeEvent.getWidth() / windowResizeEvent.getHeight(), 1.0f, 1000.0f);
+		DirectX::XMMATRIX projection = DirectX::XMMatrixPerspectiveFovLH(DirectX::XM_PIDIV4, 1.0f * windowResizeEvent.getWidth() / windowResizeEvent.getHeight(), m_nearZ, m_farZ);
 		DirectX::XMStoreFloat4x4(&m_projection, projection);
 	}
 }

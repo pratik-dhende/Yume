@@ -29,10 +29,18 @@ namespace Yume
 		D3D12Renderer(const ID3D12Window& window);
 		Microsoft::WRL::ComPtr<ID3DBlob> compileShader(const std::wstring& filename, const D3D_SHADER_MACRO* defines, const std::string& entryPoint, const std::string& target);
 
-		ID3D12Resource* getCurrentBackBuffer() const { return m_swapChainBuffers[m_currentBackBuffer].Get(); }
+		ID3D12Resource* getCurrentBackBuffer() const { return m_swapChainBuffers[m_currentBackBufferIndex].Get(); }
+
+		UINT getRtvDescriptorHandleIncrementSize() const { return m_rtvDescriptorHandleIncrementSize; }
+		UINT getDsvDescriptorHandleIncrementSize() const { return m_dsvDescriptorHandleIncrementSize; }
+		UINT getCbvSrvUavDescriptorHandleIncrementSize() const { return m_cbvSrvUavDescriptorHandleIncrementSize; }
+		UINT64 getGPUFenceValue() const { return m_fence->GetCompletedValue(); }
+		UINT64 getCPUFenceValue() const { return m_currentFenceValue; }
+		UINT getRenderTargetWidth() const { return m_swapChainBuffers[m_currentBackBufferIndex]->GetDesc().Width; }
+		UINT getRenderTargetHeight() const { return m_swapChainBuffers[m_currentBackBufferIndex]->GetDesc().Height; }
 
 		D3D12_CPU_DESCRIPTOR_HANDLE getCurrentBackBufferView() const { 
-			return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), m_currentBackBuffer, m_rtvDescriptorHandleIncrementSize);
+			return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), m_currentBackBufferIndex, m_rtvDescriptorHandleIncrementSize);
 		}
 
 		D3D12_CPU_DESCRIPTOR_HANDLE getDepthStencilView() const
@@ -40,6 +48,8 @@ namespace Yume
 			return m_dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 		}
 
+		void signalFence();
+		void sync(const UINT64 m_fenceValue);
 		void flushCommandQueue();
 		void switchBackBuffer();
 
@@ -86,8 +96,8 @@ namespace Yume
 		UINT m_rtvDescriptorHandleIncrementSize = 0;
 		UINT m_dsvDescriptorHandleIncrementSize = 0;
 		UINT m_cbvSrvUavDescriptorHandleIncrementSize = 0;
-		UINT64 m_currentFence = 0;
-		int m_currentBackBuffer = 0;
+		UINT64 m_currentFenceValue = 0;
+		int m_currentBackBufferIndex = 0;
 
 	};
 }
