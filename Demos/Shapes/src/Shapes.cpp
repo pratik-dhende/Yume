@@ -208,48 +208,22 @@ void Shapes::buildBufferFrameResources() {
 void Shapes::buildRenderItems() {
 	m_renderItems.emplace_back(std::make_unique<RenderItem>());
 
-	std::array<Vertex, 8> vertices = {
-		Vertex({ DirectX::XMFLOAT3(-1.0f, -1.0f, -1.0f), DirectX::XMFLOAT4(DirectX::Colors::White) }),
-		Vertex({ DirectX::XMFLOAT3(-1.0f, +1.0f, -1.0f), DirectX::XMFLOAT4(DirectX::Colors::Black) }),
-		Vertex({ DirectX::XMFLOAT3(+1.0f, +1.0f, -1.0f), DirectX::XMFLOAT4(DirectX::Colors::Red) }),
-		Vertex({ DirectX::XMFLOAT3(+1.0f, -1.0f, -1.0f), DirectX::XMFLOAT4(DirectX::Colors::Green) }),
-		Vertex({ DirectX::XMFLOAT3(-1.0f, -1.0f, +1.0f), DirectX::XMFLOAT4(DirectX::Colors::Blue) }),
-		Vertex({ DirectX::XMFLOAT3(-1.0f, +1.0f, +1.0f), DirectX::XMFLOAT4(DirectX::Colors::Yellow) }),
-		Vertex({ DirectX::XMFLOAT3(+1.0f, +1.0f, +1.0f), DirectX::XMFLOAT4(DirectX::Colors::Cyan) }),
-		Vertex({ DirectX::XMFLOAT3(+1.0f, -1.0f, +1.0f), DirectX::XMFLOAT4(DirectX::Colors::Magenta) })
-	};
+	Yume::Geometry geometry;
+	auto boxMesh = geometry.getBox(1.0f, 1.0f, 1.0f, 0.0f);
 
-	std::array<std::uint16_t, 36> indices =
-	{
-		// front face
-		0, 1, 2,
-		0, 2, 3,
+	std::vector<Vertex> vertices;
+	vertices.reserve(boxMesh.m_vertices.size());
 
-		// back face
-		4, 6, 5,
-		4, 7, 6,
+	auto indices = boxMesh.getIndices16();
 
-		// left face
-		4, 5, 1,
-		4, 1, 0,
-
-		// right face
-		3, 2, 6,
-		3, 6, 7,
-
-		// top face
-		1, 5, 6,
-		1, 6, 2,
-
-		// bottom face
-		4, 0, 3,
-		4, 3, 7
-	};
-
+	for (int i = 0; i < boxMesh.m_vertices.size(); ++i) {
+		vertices.emplace_back(boxMesh.m_vertices[i].m_position, DirectX::XMFLOAT4(DirectX::Colors::LightGreen));
+	}
+	
 	m_renderItems.back()->m_objectConstantsUpdates = totalBufferFrameResources;
 
-	m_renderItems.back()->m_mesh = std::make_unique<Yume::Mesh>("BoxMesh", m_renderer->m_device.Get(), m_renderer->m_commandList.Get(), vertices.data(), sizeof(vertices[0]), vertices.size(), indices.data(), sizeof(indices[0]), indices.size());
-	m_renderItems.back()->m_mesh->subMeshes["box"] = Yume::SubMesh{ static_cast<UINT>(indices.size()), 0, 0 };
+	m_renderItems.back()->m_mesh = std::make_unique<Yume::Mesh>("BoxMesh", m_renderer->m_device.Get(), m_renderer->m_commandList.Get(), static_cast<void*>(vertices.data()), sizeof(vertices[0]), vertices.size(), static_cast<void*>(indices.data()), sizeof(indices[0]), indices.size());
+	m_renderItems.back()->m_mesh->subMeshes["box"] = Yume::SubMesh{ static_cast<UINT>(boxMesh.m_indices.size()), 0, 0 };
 }
 
 void Shapes::buildCbvHeap()

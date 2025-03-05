@@ -34,8 +34,11 @@ private:
 private:
 	struct Vertex
 	{
-		DirectX::XMFLOAT3 position;
-		DirectX::XMFLOAT4 color;
+		DirectX::XMFLOAT3 m_position;
+		DirectX::XMFLOAT4 m_color;
+
+		Vertex(const DirectX::XMFLOAT3& position, const DirectX::XMFLOAT4& color)
+			: m_position(position), m_color(color) { }
 	};
 
 private:
