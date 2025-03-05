@@ -36,7 +36,7 @@ namespace Yume
 		UINT getCbvSrvUavDescriptorHandleIncrementSize() const { return m_cbvSrvUavDescriptorHandleIncrementSize; }
 		UINT64 getGPUFenceValue() const { return m_fence->GetCompletedValue(); }
 		UINT64 getCPUFenceValue() const { return m_currentFenceValue; }
-		UINT getRenderTargetWidth() const { return m_swapChainBuffers[m_currentBackBufferIndex]->GetDesc().Width; }
+		UINT64 getRenderTargetWidth() const { return m_swapChainBuffers[m_currentBackBufferIndex]->GetDesc().Width; }
 		UINT getRenderTargetHeight() const { return m_swapChainBuffers[m_currentBackBufferIndex]->GetDesc().Height; }
 
 		D3D12_CPU_DESCRIPTOR_HANDLE getCurrentBackBufferView() const { 

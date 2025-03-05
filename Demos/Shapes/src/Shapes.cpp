@@ -188,11 +188,11 @@ void Shapes::updatePassConstants(const Yume::StepTimer& timer) {
 	DirectX::XMStoreFloat4x4(&passConstants.m_viewProjection, DirectX::XMMatrixTranspose(viewProjection));
 	DirectX::XMStoreFloat4x4(&passConstants.m_inverseViewProjection, DirectX::XMMatrixTranspose(inverseViewProjection));
 
-	passConstants.m_renderTargetSize = DirectX::XMFLOAT2(m_renderer->getRenderTargetWidth(), m_renderer->getRenderTargetHeight());
-	passConstants.m_inverseRenderTargetSize = DirectX::XMFLOAT2(1.0f / m_renderer->getRenderTargetWidth(), 1.0f / m_renderer->getRenderTargetHeight());
+	passConstants.m_renderTargetSize = DirectX::XMFLOAT2(static_cast<float>(m_renderer->getRenderTargetWidth()), static_cast<float>(m_renderer->getRenderTargetHeight()));
+	passConstants.m_inverseRenderTargetSize = DirectX::XMFLOAT2(1.0f / static_cast<float>(m_renderer->getRenderTargetWidth()), 1.0f / static_cast<float>(m_renderer->getRenderTargetHeight()));
 
-	passConstants.m_totalTime = timer.GetTotalSeconds();
-	passConstants.m_deltaTime = timer.GetElapsedSeconds();
+	passConstants.m_totalTime = static_cast<float>(timer.GetTotalSeconds());
+	passConstants.m_deltaTime = static_cast<float>(timer.GetElapsedSeconds());
 
 	m_bufferFrameResources[m_currentFrameResourceIndex]->m_passConstants->updateBuffer(0, passConstants);
 }
@@ -209,7 +209,7 @@ void Shapes::buildRenderItems() {
 	m_renderItems.emplace_back(std::make_unique<RenderItem>());
 
 	Yume::Geometry geometry;
-	auto boxMesh = geometry.getBox(1.0f, 1.0f, 1.0f, 0.0f);
+	auto boxMesh = geometry.getBox(1.0f, 1.0f, 1.0f, 0);
 
 	std::vector<Vertex> vertices;
 	vertices.reserve(boxMesh.m_vertices.size());
