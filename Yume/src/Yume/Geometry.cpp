@@ -78,6 +78,67 @@ namespace Yume {
 		mesh.m_vertices = std::vector<Vertex>(vertices.begin(), vertices.end());
 		mesh.m_indices = std::vector<uint32_t>(indices.begin(), indices.end());
 
+		for (int i = 0; i < subDivisions; ++i) {
+			subdivide(mesh);
+		}
+
 		return mesh;
+	}
+
+	void Geometry::subdivide(Mesh& inOutMesh) const {
+		const auto indices = inOutMesh.m_indices;
+		const int numVertices = static_cast<int>(inOutMesh.m_vertices.size());
+
+		inOutMesh.m_indices.resize(0);
+
+		for (int i = 0; i < static_cast<int>(indices.size()); i += 3) {
+			const Vertex v0 = inOutMesh.m_vertices[indices[i]];
+			const Vertex v1 = inOutMesh.m_vertices[indices[i + 1]];
+			const Vertex v2 = inOutMesh.m_vertices[indices[i + 2]];
+
+			inOutMesh.m_vertices.push_back(bisect(v0, v1));
+			inOutMesh.m_vertices.push_back(bisect(v1, v2));
+			inOutMesh.m_vertices.push_back(bisect(v0, v2));
+
+			inOutMesh.m_indices.push_back(indices[i]);
+			inOutMesh.m_indices.push_back(numVertices + i);
+			inOutMesh.m_indices.push_back(numVertices + i + 2);
+
+			inOutMesh.m_indices.push_back(indices[i + 1]);
+			inOutMesh.m_indices.push_back(numVertices + i + 1);
+			inOutMesh.m_indices.push_back(numVertices + i);
+
+			inOutMesh.m_indices.push_back(indices[i + 2]);
+			inOutMesh.m_indices.push_back(numVertices + i + 2);
+			inOutMesh.m_indices.push_back(numVertices + i + 1);
+
+			inOutMesh.m_indices.push_back(numVertices + i + 2);
+			inOutMesh.m_indices.push_back(numVertices + i);
+			inOutMesh.m_indices.push_back(numVertices + i + 1);
+		}
+	}
+
+	Geometry::Vertex Geometry::bisect(const Vertex& v0, const Vertex& v1) const {
+		using namespace DirectX;
+
+		auto position0 = XMLoadFloat3(&v0.m_position);
+		auto position1 = XMLoadFloat3(&v1.m_position);
+
+		auto normal0 = XMLoadFloat3(&v0.m_normal);
+		auto normal1 = XMLoadFloat3(&v1.m_normal);
+
+		auto tangent0 = XMLoadFloat3(&v0.m_tangent);
+		auto tangent1 = XMLoadFloat3(&v1.m_tangent);
+
+		auto uv0 = XMLoadFloat2(&v0.m_uv);
+		auto uv1 = XMLoadFloat2(&v1.m_uv);
+
+		Vertex midPoint;
+		XMStoreFloat3(&midPoint.m_position, (position0 + position1) * 0.5f);
+		XMStoreFloat3(&midPoint.m_normal, (normal0 + normal1) * 0.5f);
+		XMStoreFloat3(&midPoint.m_tangent, (tangent0 + tangent1) * 0.5f);
+		XMStoreFloat2(&midPoint.m_uv, (uv0 + uv1) * 0.5f);
+
+		return midPoint;
 	}
 }

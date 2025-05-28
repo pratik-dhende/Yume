@@ -209,7 +209,7 @@ void Shapes::buildRenderItems() {
 	m_renderItems.emplace_back(std::make_unique<RenderItem>());
 
 	Yume::Geometry geometry;
-	auto boxMesh = geometry.getBox(1.0f, 1.0f, 1.0f, 0);
+	auto boxMesh = geometry.getBox(1.0f, 1.0f, 1.0f, 1);
 
 	std::vector<Vertex> vertices;
 	vertices.reserve(boxMesh.m_vertices.size());

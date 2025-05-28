@@ -37,5 +37,9 @@ namespace Yume {
 		};
 
 		Mesh getBox(const float width, const float height, const float depth, const uint32_t subDivisions) const;
+
+	private:
+		void subdivide(Mesh& subdividedMesh) const;
+		Vertex bisect(const Vertex& v0, const Vertex& v1) const;
 	};
 }
