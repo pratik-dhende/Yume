@@ -6,17 +6,17 @@
 
 namespace Yume
 {	
-	int Window::D3D12Port::getWidth() const noexcept
+	int Window::D3D12Port::GetWidth() const noexcept
 	{
 		return m_window.m_width;
 	}
 
-	int Window::D3D12Port::getHeight() const noexcept
+	int Window::D3D12Port::GetHeight() const noexcept
 	{
 		return m_window.m_height;
 	}
 
-	HWND Window::D3D12Port::getHandle() const noexcept
+	HWND Window::D3D12Port::GetHandle() const noexcept
 	{
 		return m_window.m_hwnd;
 	}
@@ -25,13 +25,13 @@ namespace Yume
 		: m_width(width), m_height(height), m_title(title), m_d3d12Port(*this)
 	{	
 		// TODO: Add minimum window size constraint
-		createWindow();
+		Create();
 		EventDispatcher::registerEventHandler([&](const Event& event) {
-			this->onEvent(event);
+			this->OnEvent(event);
 		});
 	}
 
-	LRESULT CALLBACK Window::handleMessage(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+	LRESULT CALLBACK Window::HandleMessage(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{	
 		try {
 			switch (uMsg)
@@ -93,22 +93,22 @@ namespace Yume
 		return DefWindowProc(hwnd, uMsg, wParam, lParam);
 	}
 
-	HWND Window::getHandle() const noexcept
+	HWND Window::GetHandle() const noexcept
 	{
 		return m_hwnd;
 	}
 
-	int Window::getWidth() const noexcept
+	int Window::GetWidth() const noexcept
 	{
 		return m_width;
 	}
 
-	int Window::getHeight() const noexcept
+	int Window::GetHeight() const noexcept
 	{
 		return m_height;
 	}
 
-	const std::wstring& Window::getTitle() const noexcept{
+	const std::wstring& Window::GetTitle() const noexcept{
 		return m_title;
 	}
 
@@ -117,7 +117,7 @@ namespace Yume
 		ShowWindow(m_hwnd, nCmdShow);
 	}
 
-	void Window::createWindow()
+	void Window::Create()
 	{	
 		const std::wstring className = L"Window";
 		const HINSTANCE hInstance = GetModuleHandle(nullptr);
@@ -126,7 +126,7 @@ namespace Yume
 
 		WNDCLASS windowClass{};
 		windowClass.style = CS_HREDRAW | CS_VREDRAW;
-		windowClass.lpfnWndProc = handleMessage;
+		windowClass.lpfnWndProc = HandleMessage;
 		windowClass.cbClsExtra = 0;
 		windowClass.cbWndExtra = 0;
 		windowClass.hInstance = hInstance;
@@ -157,11 +157,11 @@ namespace Yume
 		YM_THROW_IF_FAILED_WIN32_EXCEPTION(m_hwnd);
 	}
 
-	void Window::onEvent(const Event& event) {
+	void Window::OnEvent(const Event& event) {
 		if (event.getEventType() == EventType::WindowResize) {
 			const WindowResizeEvent& windowResizeEvent = static_cast<const WindowResizeEvent&>(event);
-			m_width = windowResizeEvent.getWidth();
-			m_height = windowResizeEvent.getHeight();
+			m_width = windowResizeEvent.GetWidth();
+			m_height = windowResizeEvent.GetHeight();
 		}
 	}
 }

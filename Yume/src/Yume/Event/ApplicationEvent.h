@@ -24,8 +24,8 @@ namespace Yume
 			: m_width(width), m_height(height)
 		{ }
 
-		int getWidth() const noexcept { return m_width; }
-		int getHeight() const noexcept { return m_height; }
+		int GetWidth() const noexcept { return m_width; }
+		int GetHeight() const noexcept { return m_height; }
 
 		std::string toString() const override
 		{

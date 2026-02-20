@@ -15,9 +15,9 @@ namespace Yume
 	class ID3D12Window
 	{
 	public:
-		virtual int getWidth() const noexcept = 0;
-		virtual int getHeight() const noexcept = 0;
-		virtual HWND getHandle() const noexcept = 0;
+		virtual int GetWidth() const noexcept = 0;
+		virtual int GetHeight() const noexcept = 0;
+		virtual HWND GetHandle() const noexcept = 0;
 	};
 
 	class D3D12Renderer
@@ -27,21 +27,21 @@ namespace Yume
 
 	public:
 		D3D12Renderer(const ID3D12Window& window);
-		Microsoft::WRL::ComPtr<ID3DBlob> compileShader(const std::wstring& filename, const D3D_SHADER_MACRO* defines, const std::string& entryPoint, const std::string& target);
+		Microsoft::WRL::ComPtr<ID3DBlob> CompileShader(const std::wstring& filename, const D3D_SHADER_MACRO* defines, const std::string& entryPoint, const std::string& target);
 
-		ID3D12Resource* getCurrentBackBuffer() const { return m_swapChainBuffers[m_currentBackBuffer].Get(); }
+		ID3D12Resource* GetCurrentBackBuffer() const { return m_swapChainBuffers[m_currentBackBuffer].Get(); }
 
-		D3D12_CPU_DESCRIPTOR_HANDLE getCurrentBackBufferView() const { 
+		D3D12_CPU_DESCRIPTOR_HANDLE GetCurrentBackBufferView() const { 
 			return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), m_currentBackBuffer, m_rtvDescriptorHandleIncrementSize);
 		}
 
-		D3D12_CPU_DESCRIPTOR_HANDLE getDepthStencilView() const
+		D3D12_CPU_DESCRIPTOR_HANDLE GetDepthStencilView() const
 		{	
 			return m_dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 		}
 
-		void flushCommandQueue();
-		void switchBackBuffer();
+		void FlushCommandQueue();
+		void SwitchBackBuffer();
 
 	public:
 		Microsoft::WRL::ComPtr<ID3D12Device4> m_device;
@@ -61,17 +61,17 @@ namespace Yume
 		UINT m_4xMsaaQualityLevels = 0;
 
 	private:
-		void init(const ID3D12Window& window);
-		void createCommandObjects();
-		void createSwapChain(const ID3D12Window& window);
-		void createRtvAndDsvDescriptorHeaps();
+		void Init(const ID3D12Window& window);
+		void CreateCommandObjects();
+		void CreateSwapChain(const ID3D12Window& window);
+		void CreateRtvAndDsvDescriptorHeaps();
 
-		void logAdapters() const;
-		void logAdapterOutputs(const Microsoft::WRL::ComPtr<IDXGIAdapter>& adapter) const;
-		void logOutputDisplayModes(const Microsoft::WRL::ComPtr<IDXGIOutput>& output, const DXGI_FORMAT& format) const;
+		void LogAdapters() const;
+		void LogAdapterOutputs(const Microsoft::WRL::ComPtr<IDXGIAdapter>& adapter) const;
+		void LogOutputDisplayModes(const Microsoft::WRL::ComPtr<IDXGIOutput>& output, const DXGI_FORMAT& format) const;
 
-		void onEvent(const Event& event);
-		void resize(const int width, const int height);
+		void OnEvent(const Event& event);
+		void Resize(const int width, const int height);
 
 	private:
 		Microsoft::WRL::ComPtr<IDXGIFactory4> m_factory;
@@ -88,6 +88,5 @@ namespace Yume
 		UINT m_cbvSrvUavDescriptorHandleIncrementSize = 0;
 		UINT64 m_currentFence = 0;
 		int m_currentBackBuffer = 0;
-
 	};
 }

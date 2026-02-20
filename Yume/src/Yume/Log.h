@@ -8,7 +8,7 @@ namespace Yume {
 	class Log
 	{
 	public:
-		static void init();
+		static void Init();
 
 		static std::shared_ptr<spdlog::logger>& getYMLogger() { return s_ymLogger; }
 		static std::shared_ptr<spdlog::logger>& getAppLogger() { return s_appLogger; }

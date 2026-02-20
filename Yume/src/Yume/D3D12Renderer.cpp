@@ -9,12 +9,12 @@ namespace Yume
 	D3D12Renderer::D3D12Renderer(const ID3D12Window& window)
 	{	
 		EventDispatcher::registerEventHandler([&](const Event& event) {
-			this->onEvent(event);
+			this->OnEvent(event);
 		});
-		init(window);
+		Init(window);
 	}
 
-	void D3D12Renderer::init(const ID3D12Window& window)
+	void D3D12Renderer::Init(const ID3D12Window& window)
 	{
 		// TODO: Research on different versions of D3D12 functions
 		UINT dxgiFactoryFlags = 0;
@@ -61,19 +61,19 @@ namespace Yume
 		YM_CORE_ASSERT(m_4xMsaaQualityLevels > 0, "Unexpected MSAA Quality Level");
 
 #ifdef YM_DEBUG
-		D3D12Renderer::logAdapters();
+		D3D12Renderer::LogAdapters();
 #endif	
-		createCommandObjects();
+		CreateCommandObjects();
 
-		createSwapChain(window);
+		CreateSwapChain(window);
 		m_currentBackBuffer = m_swapChain->GetCurrentBackBufferIndex();
 
-		createRtvAndDsvDescriptorHeaps();
+		CreateRtvAndDsvDescriptorHeaps();
 
-		resize(window.getWidth(), window.getHeight());
+		Resize(window.GetWidth(), window.GetHeight());
 	}
 
-	void D3D12Renderer::createCommandObjects()
+	void D3D12Renderer::CreateCommandObjects()
 	{
 		D3D12_COMMAND_QUEUE_DESC commandQueueDesc{};
 		commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
@@ -86,7 +86,7 @@ namespace Yume
 		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateCommandList1(0, D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(m_commandList.ReleaseAndGetAddressOf())));
 	}
 
-	void D3D12Renderer::createSwapChain(const ID3D12Window& window)
+	void D3D12Renderer::CreateSwapChain(const ID3D12Window& window)
 	{
 		// Release the previous swapchain we will be recreating
 		// TODO: Remove it as we will be releasing the com ptr before passing to CreateSwapChain method.
@@ -95,8 +95,8 @@ namespace Yume
 		Microsoft::WRL::ComPtr<IDXGISwapChain1> swapChain;
 
 		DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
-		swapChainDesc.Width = window.getWidth();
-		swapChainDesc.Height = window.getHeight();
+		swapChainDesc.Width = window.GetWidth();
+		swapChainDesc.Height = window.GetHeight();
 		swapChainDesc.Format = m_backBufferFormat;
 		swapChainDesc.SampleDesc.Count = 1;
 		swapChainDesc.SampleDesc.Quality = 0;
@@ -104,11 +104,11 @@ namespace Yume
 		swapChainDesc.BufferCount = s_swapChainBufferCount;
 		swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 
-		YM_THROW_IF_FAILED_DX_EXCEPTION(m_factory->CreateSwapChainForHwnd(m_commandQueue.Get(), window.getHandle(), &swapChainDesc, nullptr, nullptr, swapChain.GetAddressOf()));
+		YM_THROW_IF_FAILED_DX_EXCEPTION(m_factory->CreateSwapChainForHwnd(m_commandQueue.Get(), window.GetHandle(), &swapChainDesc, nullptr, nullptr, swapChain.GetAddressOf()));
 		YM_THROW_IF_FAILED_DX_EXCEPTION(swapChain.As(&m_swapChain));
 	}
 
-	void D3D12Renderer::createRtvAndDsvDescriptorHeaps()
+	void D3D12Renderer::CreateRtvAndDsvDescriptorHeaps()
 	{
 		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
 		rtvHeapDesc.NumDescriptors = s_swapChainBufferCount;
@@ -125,7 +125,7 @@ namespace Yume
 		YM_THROW_IF_FAILED_DX_EXCEPTION(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(m_dsvDescriptorHeap.ReleaseAndGetAddressOf())));
 	}
 
-	void D3D12Renderer::flushCommandQueue()
+	void D3D12Renderer::FlushCommandQueue()
 	{	
 		// Advance the fence value to mark commands up to this fence point.
 		m_currentFence++;
@@ -148,25 +148,25 @@ namespace Yume
 		}
 	}
 
-	void D3D12Renderer::switchBackBuffer()
+	void D3D12Renderer::SwitchBackBuffer()
 	{
 		m_currentBackBuffer = (m_currentBackBuffer + 1) % s_swapChainBufferCount;
 	}
 
-	void D3D12Renderer::onEvent(const Event& event) {
+	void D3D12Renderer::OnEvent(const Event& event) {
 		if (event.getEventType() == EventType::WindowResize) {
 			const WindowResizeEvent& windowResizeEvent = static_cast<const WindowResizeEvent&>(event);
-			resize(windowResizeEvent.getWidth(), windowResizeEvent.getHeight());
+			Resize(windowResizeEvent.GetWidth(), windowResizeEvent.GetHeight());
 		}
 	}
 
-	void D3D12Renderer::resize(const int width, const int height) {
+	void D3D12Renderer::Resize(const int width, const int height) {
 		YM_CORE_ASSERT(m_device, "No device for resizing");
 		YM_CORE_ASSERT(m_commandAllocator, "No command allocator for resizing");
 		YM_CORE_ASSERT(m_swapChain, "No swap chain for resizing");
 
 		// Ensures that references held to swapchain buffers are released
-		flushCommandQueue();
+		FlushCommandQueue();
 
 		YM_THROW_IF_FAILED_DX_EXCEPTION(m_commandList->Reset(m_commandAllocator.Get(), nullptr));
 
@@ -219,7 +219,7 @@ namespace Yume
 		ID3D12CommandList* commandLists[] = { m_commandList.Get() };
 		m_commandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
 
-		flushCommandQueue();
+		FlushCommandQueue();
 
 		// Specify viewport and scissor rectangle
 		m_screenViewport.TopLeftX = 0.0f;
@@ -235,7 +235,7 @@ namespace Yume
 		m_scissorRect.bottom = height;
 	}
 
-	void D3D12Renderer::logAdapters() const
+	void D3D12Renderer::LogAdapters() const
 	{	
 		UINT adapterIndex = 0;
 		Microsoft::WRL::ComPtr<IDXGIAdapter> adapter = nullptr;
@@ -246,13 +246,13 @@ namespace Yume
 			adapter->GetDesc(&adapterDesc);
 
 			YM_CORE_INFO("Adapter: {0}", wStringToAnsi(adapterDesc.Description));
-			logAdapterOutputs(adapter);
+			LogAdapterOutputs(adapter);
 
 			++adapterIndex;
 		}
 	}
 
-	void D3D12Renderer::logAdapterOutputs(const Microsoft::WRL::ComPtr<IDXGIAdapter>& adapter) const
+	void D3D12Renderer::LogAdapterOutputs(const Microsoft::WRL::ComPtr<IDXGIAdapter>& adapter) const
 	{
 		UINT adapterOutputIndex = 0;
 		Microsoft::WRL::ComPtr<IDXGIOutput> adapterOutput = nullptr;
@@ -264,13 +264,13 @@ namespace Yume
 
 			YM_CORE_INFO("Output: {0}", wStringToAnsi(adapterOutputDesc.DeviceName));
 
-			logOutputDisplayModes(adapterOutput, m_backBufferFormat);
+			LogOutputDisplayModes(adapterOutput, m_backBufferFormat);
 
 			++adapterOutputIndex;
 		}
 	}
 
-	void D3D12Renderer::logOutputDisplayModes(const Microsoft::WRL::ComPtr<IDXGIOutput>& output, const DXGI_FORMAT& format) const
+	void D3D12Renderer::LogOutputDisplayModes(const Microsoft::WRL::ComPtr<IDXGIOutput>& output, const DXGI_FORMAT& format) const
 	{
 		UINT displayModesCount = 0;
 		UINT flags = 0;
@@ -290,7 +290,7 @@ namespace Yume
 		}
 	}
 
-	Microsoft::WRL::ComPtr<ID3DBlob> D3D12Renderer::compileShader(const std::wstring& filename, const D3D_SHADER_MACRO* defines, const std::string& entryPoint, const std::string& target)
+	Microsoft::WRL::ComPtr<ID3DBlob> D3D12Renderer::CompileShader(const std::wstring& filename, const D3D_SHADER_MACRO* defines, const std::string& entryPoint, const std::string& target)
 	{
 		// TODO: Remove D3DCompile as for DirectX 12, Shader Model 5.1, the D3DCompile API, and FXC are all deprecated. Use Shader Model 6 via DXIL instead. See https://github.com/microsoft/DirectXShaderCompiler. (Kept it for simplicity for now)
 		Microsoft::WRL::ComPtr<ID3DBlob> compiledByteCode = nullptr;

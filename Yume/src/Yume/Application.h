@@ -20,9 +20,9 @@ namespace Yume {
 
 		void run(int nCmdShow);
 
-		virtual void init() = 0;
-		virtual void update(const StepTimer& coreTimer) = 0;
-		virtual void draw() = 0;
+		virtual void Init() = 0;
+		virtual void Update(const StepTimer& coreTimer) = 0;
+		virtual void Render() = 0;
 
 	public:
 		std::unique_ptr<D3D12Renderer> m_renderer;

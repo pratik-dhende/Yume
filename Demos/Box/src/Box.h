@@ -5,9 +5,9 @@
 class Box : public Yume::Application
 {	
 public:
-	void init() override;
-	void update(const Yume::StepTimer& coreTimer) override;
-	void draw() override;
+	void Init() override;
+	void Update(const Yume::StepTimer& coreTimer) override;
+	void Render() override;
 
 private:
 	void buildCbvHeap();

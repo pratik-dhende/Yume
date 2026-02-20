@@ -37,11 +37,11 @@ namespace Yume
 			m_renderer = std::make_unique<D3D12Renderer>(m_window->m_d3d12Port);
 
 			m_mouse = std::make_unique<DirectX::Mouse>();
-			m_mouse->SetWindow(m_window->getHandle());
+			m_mouse->SetWindow(m_window->GetHandle());
 
 			DirectX::Mouse::ButtonStateTracker tracker;
 
-			init();
+			Init();
 
 			MSG msg = {};
 			while (msg.message != WM_QUIT)
@@ -73,15 +73,15 @@ namespace Yume
 					}
 					
 					const double millisecondsPerFrame = 1000.0 / m_timer->GetFramesPerSecond();
-					const std::wstring windowTitle = m_window->getTitle() + L"    FPS: " + std::to_wstring(m_timer->GetFramesPerSecond()) + L"    MSPF: " + std::to_wstring(millisecondsPerFrame);
+					const std::wstring windowTitle = m_window->GetTitle() + L"    FPS: " + std::to_wstring(m_timer->GetFramesPerSecond()) + L"    MSPF: " + std::to_wstring(millisecondsPerFrame);
 
-					SetWindowText(m_window->getHandle(), windowTitle.c_str());
+					SetWindowText(m_window->GetHandle(), windowTitle.c_str());
 
 					m_timer->Tick([&]() {
-						update(*m_timer);
+						Update(*m_timer);
 					});
 					
-					draw();
+					Render();
 				}
 			}
 		}

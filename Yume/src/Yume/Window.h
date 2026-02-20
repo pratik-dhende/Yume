@@ -19,23 +19,23 @@ namespace Yume
 				: m_window(window) 
 			{ }
 
-			int getWidth() const noexcept override;
-			int getHeight() const noexcept override;
-			HWND getHandle() const noexcept override;
+			int GetWidth() const noexcept override;
+			int GetHeight() const noexcept override;
+			HWND GetHandle() const noexcept override;
 
 		private:
 			const Window& m_window;
 		};
 
 	public:
-		static LRESULT handleMessage(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+		static LRESULT HandleMessage(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 		Window(const std::wstring& title, const int width, const int height);
 
-		HWND getHandle() const noexcept;
-		int getWidth() const noexcept;
-		int getHeight() const noexcept;
-		const std::wstring& getTitle() const noexcept;
+		HWND GetHandle() const noexcept;
+		int GetWidth() const noexcept;
+		int GetHeight() const noexcept;
+		const std::wstring& GetTitle() const noexcept;
 
 		void show(const int nCmdShow) const;
 
@@ -51,7 +51,7 @@ namespace Yume
 		std::wstring m_title;
 		
 	private:
-		void createWindow();
-		void onEvent(const Event& event);
+		void Create();
+		void OnEvent(const Event& event);
 	};
 }

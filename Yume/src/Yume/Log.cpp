@@ -9,7 +9,7 @@ namespace Yume
 	std::shared_ptr<spdlog::logger> Log::s_ymLogger;
 	std::shared_ptr<spdlog::logger> Log::s_appLogger;
 
-	void Log::init()
+	void Log::Init()
 	{	
 		// Timestamp Name: Message
 		spdlog::set_pattern("%^[%T] %n: %v%$");

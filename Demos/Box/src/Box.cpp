@@ -3,7 +3,7 @@
 
 constexpr float MOUSE_SENSITIVITY = 0.01f;
 
-void Box::init()
+void Box::Init()
 {	
 	Yume::EventDispatcher::registerEventHandler([&](const Yume::Event& event) {
 		this->handleMouseMove(event);
@@ -22,6 +22,7 @@ void Box::init()
 	buildRootSignature();
 	buildShadersAndInputLayout();
 	buildBoxGeometry();
+
 	buildPipelineStateObject();
 
 	// Execute the initialization commands
@@ -29,7 +30,7 @@ void Box::init()
 	ID3D12CommandList* commandLists[] = { m_renderer->m_commandList.Get() };
 	m_renderer->m_commandQueue->ExecuteCommandLists(_countof(commandLists), commandLists);
 
-	m_renderer->flushCommandQueue();
+	m_renderer->FlushCommandQueue();
 
 	// Create world view projection matrix
 	DirectX::XMVECTOR position = DirectX::XMVectorSet(0.0f, 0.0f, -5.0f, 1.0f);
@@ -39,7 +40,7 @@ void Box::init()
 	DirectX::XMMATRIX view = DirectX::XMMatrixLookAtLH(position, target, up);
 	DirectX::XMStoreFloat4x4(&m_view, view);
 
-	DirectX::XMMATRIX projection = DirectX::XMMatrixPerspectiveFovLH(0.25f * DirectX::XM_PI, 1.0f * m_window->getWidth() / m_window->getHeight(), 1.0f, 1000.0f);
+	DirectX::XMMATRIX projection = DirectX::XMMatrixPerspectiveFovLH(0.25f * DirectX::XM_PI, 1.0f * m_window->GetWidth() / m_window->GetHeight(), 1.0f, 1000.0f);
 	DirectX::XMStoreFloat4x4(&m_projection, projection);
 
 	DirectX::XMMATRIX worldViewProjection = DirectX::XMLoadFloat4x4(&m_world) * DirectX::XMLoadFloat4x4(&m_view) * DirectX::XMLoadFloat4x4(&m_projection);
@@ -50,7 +51,7 @@ void Box::init()
 	m_objectConstants->updateBuffer(0, objectConstants);
 }
 
-void Box::update(const Yume::StepTimer& coreTimer) {
+void Box::Update(const Yume::StepTimer& coreTimer) {
 	DirectX::XMMATRIX worldViewProjection = DirectX::XMMatrixRotationY(-m_yaw) * DirectX::XMMatrixRotationX(-m_pitch) * DirectX::XMLoadFloat4x4(&m_view) * DirectX::XMLoadFloat4x4(&m_projection);
 
 	// Upload world view projection matrix
@@ -59,7 +60,7 @@ void Box::update(const Yume::StepTimer& coreTimer) {
 	m_objectConstants->updateBuffer(0, objectConstants);
 }
 
-void Box::draw()
+void Box::Render()
 {	
 	// Clear command allocator and command list
 	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_commandAllocator->Reset());
@@ -70,16 +71,16 @@ void Box::draw()
 	m_renderer->m_commandList->RSSetScissorRects(1, &m_renderer->m_scissorRect);
 
 	// Switch from present to target
-	auto presentTargetTransition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderer->getCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	auto presentTargetTransition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderer->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	m_renderer->m_commandList->ResourceBarrier(1, &presentTargetTransition);
 
 	// Clear the render target and dsv
-	m_renderer->m_commandList->ClearRenderTargetView(m_renderer->getCurrentBackBufferView(), DirectX::Colors::LightSteelBlue, 0, nullptr);
-	m_renderer->m_commandList->ClearDepthStencilView(m_renderer->getDepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+	m_renderer->m_commandList->ClearRenderTargetView(m_renderer->GetCurrentBackBufferView(), DirectX::Colors::LightSteelBlue, 0, nullptr);
+	m_renderer->m_commandList->ClearDepthStencilView(m_renderer->GetDepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
 	// Set render targets
-	auto backBufferView = m_renderer->getCurrentBackBufferView();
-	auto depthStencilView = m_renderer->getDepthStencilView();
+	auto backBufferView = m_renderer->GetCurrentBackBufferView();
+	auto depthStencilView = m_renderer->GetDepthStencilView();
 	m_renderer->m_commandList->OMSetRenderTargets(1, &backBufferView, true, &depthStencilView);
 
 	// Set descriptor heaps
@@ -90,8 +91,8 @@ void Box::draw()
 	m_renderer->m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
 
 	// Set vertex buffer and primitive type
-	auto vertexBufferView = m_boxMesh->getVertexBufferView();
-	auto indexBufferView = m_boxMesh->getIndexBufferView();
+	auto vertexBufferView = m_boxMesh->GetVertexBufferView();
+	auto indexBufferView = m_boxMesh->GetIndexBufferView();
 	m_renderer->m_commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 	m_renderer->m_commandList->IASetIndexBuffer(&indexBufferView);
 	m_renderer->m_commandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -103,7 +104,7 @@ void Box::draw()
 	m_renderer->m_commandList->DrawIndexedInstanced(m_boxMesh->subMeshes["box"].indexCount, 1, 0, 0, 0);
 
 	// Switch from target to present
-	auto targetPresentTransition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderer->getCurrentBackBuffer(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+	auto targetPresentTransition = CD3DX12_RESOURCE_BARRIER::Transition(m_renderer->GetCurrentBackBuffer(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 	m_renderer->m_commandList->ResourceBarrier(1, &targetPresentTransition);
 	
 	// Close command list
@@ -116,9 +117,9 @@ void Box::draw()
 	// Present
 	// TODO: Why did we use 0s as the parameters?
 	YM_THROW_IF_FAILED_DX_EXCEPTION(m_renderer->m_swapChain->Present(0, 0));
-	m_renderer->switchBackBuffer();
+	m_renderer->SwitchBackBuffer();
 
-	m_renderer->flushCommandQueue();
+	m_renderer->FlushCommandQueue();
 }
 
 std::unique_ptr<Yume::Application> Yume::createApplication() {
@@ -175,8 +176,8 @@ void Box::buildRootSignature()
 
 void Box::buildShadersAndInputLayout()
 {	
-	m_vsByteCode = m_renderer->compileShader(L"Shaders/VS.hlsl", nullptr, "VS", "vs_5_0");
-	m_psByteCode = m_renderer->compileShader(L"Shaders/PS.hlsl", nullptr, "PS", "ps_5_0");
+	m_vsByteCode = m_renderer->CompileShader(L"Shaders/VS.hlsl", nullptr, "VS", "vs_5_0");
+	m_psByteCode = m_renderer->CompileShader(L"Shaders/PS.hlsl", nullptr, "PS", "ps_5_0");
 
 	m_inputLayout = {
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
@@ -266,7 +267,7 @@ void Box::handleWindowResize(const Yume::Event& event) {
 	if (event.getEventType() == Yume::EventType::WindowResize) {
 		const Yume::WindowResizeEvent& windowResizeEvent = static_cast<const Yume::WindowResizeEvent&>(event);
 
-		DirectX::XMMATRIX projection = DirectX::XMMatrixPerspectiveFovLH(0.25f * DirectX::XM_PI, 1.0f * windowResizeEvent.getWidth() / windowResizeEvent.getHeight(), 1.0f, 1000.0f);
+		DirectX::XMMATRIX projection = DirectX::XMMatrixPerspectiveFovLH(0.25f * DirectX::XM_PI, 1.0f * windowResizeEvent.GetWidth() / windowResizeEvent.GetHeight(), 1.0f, 1000.0f);
 		DirectX::XMStoreFloat4x4(&m_projection, projection);
 	}
 }

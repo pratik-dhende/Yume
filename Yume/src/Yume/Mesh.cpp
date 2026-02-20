@@ -15,15 +15,15 @@ namespace Yume
 		YM_THROW_IF_FAILED_DX_EXCEPTION(D3DCreateBlob(indexDataByteSize, m_indexBufferCPU.ReleaseAndGetAddressOf()));
 		CopyMemory(m_indexBufferCPU->GetBufferPointer(), indexData, indexDataByteSize);
 
-		createDefaultAndUploadBuffer(device, commandList, m_vertexBufferGPU, m_vertexUploadBuffer, m_vertexBufferCPU->GetBufferPointer(), m_vertexBufferCPU->GetBufferSize());
+		CreateDefaultAndUploadBuffer(device, commandList, m_vertexBufferGPU, m_vertexUploadBuffer, m_vertexBufferCPU->GetBufferPointer(), m_vertexBufferCPU->GetBufferSize());
 
-		createDefaultAndUploadBuffer(device, commandList, m_indexBufferGPU, m_indexUploadBuffer, m_indexBufferCPU->GetBufferPointer(), m_indexBufferCPU->GetBufferSize());
+		CreateDefaultAndUploadBuffer(device, commandList, m_indexBufferGPU, m_indexUploadBuffer, m_indexBufferCPU->GetBufferPointer(), m_indexBufferCPU->GetBufferSize());
 
 		m_vertexByteStride = vertexByteSize;
 		
 	}
 
-	void Mesh::createDefaultAndUploadBuffer(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, Microsoft::WRL::ComPtr<ID3D12Resource>& defaultBuffer, Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer, const void* data, UINT64 dataByteSize) const
+	void Mesh::CreateDefaultAndUploadBuffer(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, Microsoft::WRL::ComPtr<ID3D12Resource>& defaultBuffer, Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer, const void* data, UINT64 dataByteSize) const
 	{	
 		// Default buffer
 		CD3DX12_HEAP_PROPERTIES bufferHeapProps(D3D12_HEAP_TYPE_DEFAULT);

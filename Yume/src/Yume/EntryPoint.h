@@ -4,7 +4,7 @@ extern std::unique_ptr<Yume::Application> Yume::createApplication();
 
 int YM_MAIN()
 {	
-	Yume::Log::init();
+	Yume::Log::Init();
 
 	YM_CORE_INFO("Yume Logger initialized.");
 	YM_CORE_INFO("Yume Engine initialized.");

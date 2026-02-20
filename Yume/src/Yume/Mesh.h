@@ -16,7 +16,7 @@ namespace Yume
 	public:
 		Mesh(const std::string& name, ID3D12Device* device, ID3D12GraphicsCommandList* commandList, const void* vertexData, UINT vertexByteSize, UINT vertices, const void* indexData, UINT indexByteSize, UINT indices);
 
-		D3D12_VERTEX_BUFFER_VIEW getVertexBufferView() const
+		D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView() const
 		{
 			D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
 			vertexBufferView.BufferLocation = m_vertexBufferGPU->GetGPUVirtualAddress();
@@ -26,7 +26,7 @@ namespace Yume
 			return vertexBufferView;
 		}
 
-		D3D12_INDEX_BUFFER_VIEW getIndexBufferView() const
+		D3D12_INDEX_BUFFER_VIEW GetIndexBufferView() const
 		{
 			D3D12_INDEX_BUFFER_VIEW indexBufferView;
 			indexBufferView.BufferLocation = m_indexBufferGPU->GetGPUVirtualAddress();
@@ -40,7 +40,7 @@ namespace Yume
 		std::unordered_map<std::string, SubMesh> subMeshes;
 
 	private:
-		void createDefaultAndUploadBuffer(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, Microsoft::WRL::ComPtr<ID3D12Resource>& defaultBuffer, Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer, const void* data, UINT64 dataByteSize) const;
+		void CreateDefaultAndUploadBuffer(ID3D12Device* device, ID3D12GraphicsCommandList* commandList, Microsoft::WRL::ComPtr<ID3D12Resource>& defaultBuffer, Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer, const void* data, UINT64 dataByteSize) const;
 
 	private:
 		std::string m_name = "";
