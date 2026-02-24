@@ -10,7 +10,7 @@ namespace Yume {
 
 class PostProcessPass {
 public:	
-	virtual void Execute(const RenderContext& renderContext, ShaderHandle shaderHandle, const Texture* input, const Texture* output);
+	virtual void Execute(const RenderContext& renderContext, ShaderHandle shaderHandle, const TextureHandle input, const TextureHandle output);
 };
 
 }

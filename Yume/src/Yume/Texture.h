@@ -6,4 +6,6 @@ class Texture {
 
 };
 
+using TextureHandle = Texture*;
+
 }

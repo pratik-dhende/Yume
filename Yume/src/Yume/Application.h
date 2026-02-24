@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Core.h"
+#include "TextureManager.h"
+#include "ShaderManager.h"
 
 namespace DirectX {
 	class Mouse;
@@ -29,6 +31,9 @@ namespace Yume {
 		std::unique_ptr<Window> m_window;
 		std::unique_ptr<DirectX::Mouse> m_mouse;
 		std::unique_ptr<StepTimer> m_timer;
+
+		std::unique_ptr<TextureManager> m_textureManager;
+		std::unique_ptr<ShaderManager> m_shaderManager;
 	};
 
 	std::unique_ptr<Application> createApplication();

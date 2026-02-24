@@ -8,4 +8,8 @@ struct Shader {
 
 using ShaderHandle = Shader*;
 
+class ShaderManager {
+
+};
+
 }
