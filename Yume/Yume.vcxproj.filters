@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\ECS.h">
+    <ClInclude Include="src\Entity.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Components.h">
@@ -24,9 +24,27 @@
     <ClInclude Include="src\EventSystem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\Material.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Mesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Component.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ResourceManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ResourceManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

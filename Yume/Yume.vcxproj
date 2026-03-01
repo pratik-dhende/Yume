@@ -102,6 +102,8 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(ProjectDir)\external\glm-1.0.3\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -123,12 +125,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="src\Component.h" />
     <ClInclude Include="src\Components.h" />
-    <ClInclude Include="src\ECS.h" />
+    <ClInclude Include="src\Entity.h" />
     <ClInclude Include="src\EventSystem.h" />
+    <ClInclude Include="src\Material.h" />
+    <ClInclude Include="src\Mesh.h" />
+    <ClInclude Include="src\Resource.h" />
+    <ClInclude Include="src\ResourceManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Main.cpp" />
+    <ClCompile Include="src\ResourceManager.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
