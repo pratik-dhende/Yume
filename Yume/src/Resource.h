@@ -53,12 +53,12 @@ public:
     const std::string& GetId() const { return m_resourceId; }
     bool IsLoaded() const { return m_loaded; }
 
-    bool Load() {
+    virtual bool Load() {
         m_loaded = DoLoad();
         return m_loaded;
     }
 
-    void Unload() {
+    virtual void Unload() {
         DoUnload();
         m_loaded = false;
     }
