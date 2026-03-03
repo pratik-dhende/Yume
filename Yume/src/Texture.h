@@ -48,6 +48,14 @@ public:
     vk::ImageView GetImageView() const { return m_imageView; }
     vk::Sampler GetSampler() const { return m_sampler; }
 
+    bool DoLoad() override {
+        return true;
+    }
+
+    bool DoUnload() override {
+        return true;
+    }
+
 private:
     vk::Image m_image;              
     vk::DeviceMemory m_memory;      
@@ -58,6 +66,12 @@ private:
     int m_width = 0;                
     int m_height = 0;               
     int m_channels = 0; 
+
+    vk::Format m_format;                    
+    vk::Extent2D m_extent;                  
+    vk::ImageUsageFlags m_usage;            
+    vk::ImageLayout m_initialLayout;        // Expected layout when the frame begins
+    vk::ImageLayout m_finalLayout;          // Required layout when the frame ends
 
 private:
     unsigned char* LoadImageData(const std::string& filePath, int* width, int* height, int* channels) {

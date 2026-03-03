@@ -4,6 +4,7 @@
 #include "Entity.h"
 #include "Material.h"
 #include "Mesh.h"
+#include "BoundingBox.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -76,6 +77,8 @@ public:
 		m_material->SetUniform("modelMatrix", transform->GetTransformMatrix());
 		m_mesh->Render();
 	}
+
+	BoundingBox GetBoundingBox() const;
 
 private:
 	Mesh* m_mesh = nullptr;
