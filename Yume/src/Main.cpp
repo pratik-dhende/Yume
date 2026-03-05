@@ -13,9 +13,10 @@
 #include "HotReloadResourceManager.h"
 #include "Texture.h"
 #include "Rendergraph.h"
-#include "CullingSystem"
+#include "CullingSystem.h"
 #include "Camera.h"
 #include "BoundingBox.h"
+#include "RenderGraph.h"
 
 int main() {
 	std::cout << "Hello, Yume!" << std::endl;

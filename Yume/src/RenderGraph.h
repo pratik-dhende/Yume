@@ -1,7 +1,10 @@
 #pragma once
 
-#include "Texture.h"
-
+#include <vector>
+#include <string>
+#include <unordered_map>
+#include <functional>
+#include <stdexcept>
 #include <vulkan/vulkan_raii.hpp>
 
 namespace Yume {
@@ -15,12 +18,34 @@ private:
         std::vector<std::string> outputs;     
         std::function<void(vk::raii::CommandBuffer&)> executeFunc;  
     };
+                  
+    struct ImageResource {
+        vk::Format format;                    
+        vk::Extent2D extent;                  
+        vk::ImageUsageFlags usage;            
+        vk::ImageLayout initialLayout;        
+        vk::ImageLayout finalLayout;          
+
+        vk::raii::Image image = nullptr;     
+        vk::raii::DeviceMemory memory = nullptr;  
+        vk::raii::ImageView view = nullptr;
+        
+        std::string name;
+    };
 
 public:
     explicit RenderGraph(vk::raii::Device& device) : m_device(device) {}
 
-    void AddTextureResource(const Texture& texture) {
-        // m_textureResources[texture.GetId()] = texture; TOOO: Use later
+    void AddImageResource(const std::string& name, vk::Format format, vk::Extent2D extent, vk::ImageUsageFlags usage, vk::ImageLayout initialLayout, vk::ImageLayout finalLayout) {
+        ImageResource imageResource;
+        imageResource.name = name;
+        imageResource.format = format;
+        imageResource.extent = extent;
+        imageResource.usage = usage;
+        imageResource.initialLayout = initialLayout;
+        imageResource.finalLayout = finalLayout;
+
+        m_imageResources[name] = std::move(imageResource);
     }
 
     void AddPass(const std::string& name, const std::vector<std::string>& inputs, const std::vector<std::string>& outputs, std::function<void(vk::raii::CommandBuffer&)> executeFunc) {
@@ -36,8 +61,8 @@ public:
     void Compile() {
         // Dependency Graph Construction
         // Build bidirectional dependency relationships between passes
-        std::vector<std::vector<size_t>> passDependencies(m_passes.size());
-        std::vector<std::vector<size_t>> passDependents(m_passes.size());
+        std::vector<std::vector<size_t>> dependencies(m_passes.size());
+        std::vector<std::vector<size_t>> dependents(m_passes.size());
 
         // Track which pass produces each resource (write-after-write dependencies)
         std::unordered_map<std::string, size_t> latestResourceWriters;
@@ -54,8 +79,8 @@ public:
                 auto it = latestResourceWriters.find(input);
                 if (it != latestResourceWriters.end()) {
                     // RAW
-                    passDependencies[i].push_back(it->second);      
-                    passDependents[it->second].push_back(i);         
+                    dependencies[i].push_back(it->second);      
+                    dependents[it->second].push_back(i);         
                 }
             }
 
@@ -63,15 +88,15 @@ public:
                 auto it = latestResourceReaders.find(output);
                 if (it != latestResourceReaders.end()) {
                     // WAR
-                    passDependencies[i].push_back(it->second);
-                    passDependents[it->second].push_back(i);
+                    dependencies[i].push_back(it->second);
+                    dependents[it->second].push_back(i);
                 }
                 
                 it = latestResourceWriters.find(output);
                 if (it != latestResourceWriters.end()) {
                     // WAW
-                    passDependencies[i].push_back(it->second);
-                    passDependents[it->second].push_back(i);
+                    dependencies[i].push_back(it->second);
+                    dependents[it->second].push_back(i);
                 }
                 latestResourceWriters[output] = i;  
             }
@@ -95,7 +120,7 @@ public:
             inStack[node] = true;   // Mark as currently being processed
 
             // Recursively process all dependent passes first (post-order traversal)
-            for (auto dependent : passDependents[node]) {
+            for (auto dependent : dependents[node]) {
                 visit(dependent);
             }
 
@@ -110,10 +135,255 @@ public:
                 visit(i);
             }
         }
+
+        // Generate semaphores for all dependencies identified during analysis
+        for (size_t consumer = 0; consumer < m_passes.size(); ++consumer) {
+            for (auto producer : dependencies[consumer]) {
+                m_semaphores.emplace_back(m_device.createSemaphore({}));
+                m_semaphoreSignalWaitPairs.emplace_back(producer, consumer);    // (producer, consumer) pair
+            }
+        }
+
+        // Physical Resource Allocation and Creation
+        // Transform resource descriptions into actual GPU objects
+        for (auto& [name, imageResource] : m_imageResources) {
+            vk::ImageCreateInfo imageInfo;
+            imageInfo.setImageType(vk::ImageType::e2D)                    
+                     .setFormat(imageResource.format)                          
+                     .setExtent({imageResource.extent.width, imageResource.extent.height, 1})  
+                     .setMipLevels(1)                                      
+                     .setArrayLayers(1)                                    
+                     .setSamples(vk::SampleCountFlagBits::e1)              
+                     .setTiling(vk::ImageTiling::eOptimal)                 
+                     .setUsage(imageResource.usage)                             
+                     .setSharingMode(vk::SharingMode::eExclusive)          
+                     .setInitialLayout(vk::ImageLayout::eUndefined);       
+
+            imageResource.image = m_device.createImage(imageInfo);               
+
+            // Allocate backing memory for the image
+            vk::MemoryRequirements memRequirements = imageResource.image.getMemoryRequirements();
+
+            vk::MemoryAllocateInfo allocInfo;
+            allocInfo.setAllocationSize(memRequirements.size)             
+                     .setMemoryTypeIndex(FindMemoryType(memRequirements.memoryTypeBits,
+                                                       vk::MemoryPropertyFlagBits::eDeviceLocal));  
+
+            imageResource.memory = m_device.allocateMemory(allocInfo);           
+            imageResource.image.bindMemory(*imageResource.memory, 0);               
+
+            // Create image view for shader access
+            vk::ImageViewCreateInfo viewInfo;
+            viewInfo.setImage(*imageResource.image)                            // Reference the created image
+                    .setViewType(vk::ImageViewType::e2D)                   // 2D view type
+                    .setFormat(imageResource.format)                            // Match image format
+                    .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});  // Full image access
+
+            imageResource.view = m_device.createImageView(viewInfo);             // Create shader-accessible view
+        }
+    }
+
+    ImageResource* GetResource(const std::string& name) {
+        auto it = m_imageResources.find(name);
+        return (it != m_imageResources.end()) ? &it->second : nullptr;
+    }
+
+    // Rendergraph execution engine - coordinates pass execution with automatic synchronization
+    // This method transforms the compiled rendergraph into actual GPU work
+    void Execute(vk::raii::CommandBuffer& commandBuffer, vk::Queue queue) {
+        // Execution state management for dynamic synchronization
+        std::vector<vk::CommandBuffer> cmdBuffers;           
+        std::vector<vk::Semaphore> waitSemaphores;           
+        std::vector<vk::PipelineStageFlags> waitStages;      
+        std::vector<vk::Semaphore> signalSemaphores;         
+
+        // Ordered Pass Execution with Automatic Dependency Management
+        // Execute each pass in the computed dependency-safe order
+        for (auto passIdx : m_executionOrder) {
+            const auto& pass = m_passes[passIdx];
+
+            // Synchronization Setup - Collect Dependencies for Current Pass
+            // Determine what this pass must wait for before executing
+            waitSemaphores.clear();
+            waitStages.clear();
+
+            for (size_t i = 0; i < m_semaphoreSignalWaitPairs.size(); ++i) {
+                if (m_semaphoreSignalWaitPairs[i].second == passIdx) {
+                    waitSemaphores.push_back(*m_semaphores[i]);                           
+                    waitStages.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+                }
+            }
+
+            signalSemaphores.clear();
+            for (size_t i = 0; i < m_semaphoreSignalWaitPairs.size(); ++i) {
+                if (m_semaphoreSignalWaitPairs[i].first == passIdx) {
+                    signalSemaphores.push_back(*m_semaphores[i]);                         
+                }
+            }
+
+            // Command Buffer Preparation and Resource Layout Transitions
+            // Set up command recording and transition resources to appropriate layouts
+            commandBuffer.begin({});                                                   
+
+            // Transition input resources to shader-readable layouts
+            for (const auto& input : pass.inputs) {
+                auto& inputImageResource = m_imageResources[input];
+
+                vk::ImageMemoryBarrier barrier;
+                barrier.setOldLayout(inputImageResource.initialLayout)                           
+                       .setNewLayout(vk::ImageLayout::eShaderReadOnlyOptimal)          
+                       .setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)                // No queue family transfer
+                       .setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+                       .setImage(*inputImageResource.image)                                      
+                       .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1})  
+                       .setSrcAccessMask(vk::AccessFlagBits::eMemoryWrite)             // Previous write access
+                       .setDstAccessMask(vk::AccessFlagBits::eShaderRead);             // Required read access
+
+                // Insert pipeline barrier for safe layout transition
+                commandBuffer.pipelineBarrier(
+                    vk::PipelineStageFlagBits::eAllCommands,                           // Wait for all previous work
+                    vk::PipelineStageFlagBits::eFragmentShader,                        // Enable fragment shader access
+                    vk::DependencyFlagBits::eByRegion,                                 // Region-local dependency
+                    {}, {}, {barrier}                                                  // Image barrier only
+                );
+            }
+
+            // Transition output resources to render target layouts
+            for (const auto& output : pass.outputs) {
+                auto& outputImageResource = m_imageResources[output];
+
+                vk::ImageMemoryBarrier barrier;
+                barrier.setOldLayout(outputImageResource.initialLayout)                           
+                       .setNewLayout(vk::ImageLayout::eColorAttachmentOptimal)         
+                       .setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+                       .setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+                       .setImage(*outputImageResource.image)
+                       .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1})
+                       .setSrcAccessMask(vk::AccessFlagBits::eMemoryRead)              // Previous read access
+                       .setDstAccessMask(vk::AccessFlagBits::eColorAttachmentWrite);   // Required write access
+
+                // Insert barrier for safe transition to writable state
+                commandBuffer.pipelineBarrier(
+                    vk::PipelineStageFlagBits::eAllCommands,
+                    vk::PipelineStageFlagBits::eColorAttachmentOutput,                
+                    vk::DependencyFlagBits::eByRegion,
+                    {}, {}, {barrier}
+                );
+            }
+
+            // Pass Execution - Execute the Actual Rendering Logic
+            // Call the user-provided rendering function with prepared command buffer
+            pass.executeFunc(commandBuffer);                                           
+
+            // Final Layout Transitions - Prepare Resources for Subsequent Use
+            // Transition output resources to their final required layouts
+            for (const auto& output : pass.outputs) {
+                auto& outputImageResource = m_imageResources[output];
+
+                vk::ImageMemoryBarrier barrier;
+                barrier.setOldLayout(vk::ImageLayout::eColorAttachmentOptimal)         
+                       .setNewLayout(outputImageResource.finalLayout)                             
+                       .setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+                       .setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+                       .setImage(*outputImageResource.image)
+                       .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1})
+                       .setSrcAccessMask(vk::AccessFlagBits::eColorAttachmentWrite)    // Previous write operations
+                       .setDstAccessMask(vk::AccessFlagBits::eMemoryRead);             // Enable subsequent reads
+
+                // Insert final barrier for layout transition
+                commandBuffer.pipelineBarrier(
+                    vk::PipelineStageFlagBits::eColorAttachmentOutput,                 // After color writes complete
+                    vk::PipelineStageFlagBits::eAllCommands,                           // Before any subsequent work
+                    vk::DependencyFlagBits::eByRegion,
+                    {}, {}, {barrier}
+                );
+            }
+
+            // Command Submission with Synchronization
+            // Submit command buffer with appropriate dependency and signaling semaphores
+            commandBuffer.end();                                                       
+
+            vk::SubmitInfo submitInfo;
+            submitInfo.setWaitSemaphoreCount(static_cast<uint32_t>(waitSemaphores.size()))      
+                      .setPWaitSemaphores(waitSemaphores.data())                                 
+                      .setPWaitDstStageMask(waitStages.data())                                   
+                      .setCommandBufferCount(1)                                                  
+                      .setPCommandBuffers(&*commandBuffer)                                      
+                      .setSignalSemaphoreCount(static_cast<uint32_t>(signalSemaphores.size()))  
+                      .setPSignalSemaphores(signalSemaphores.data());                           
+
+            auto result = queue.submit(1, &submitInfo, nullptr);                                              
+        }
     }
 
 private:
-    // std::unordered_map<std::string, Texture> m_textureResources;  TODO: Use later. Currently uncommented to avoid constructor error.
+    uint32_t FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) {
+        // Implementation to find suitable memory type
+        // ...
+        return 0; // Placeholder
+    }
+
+    // Comprehensive image layout transition implementation
+    // This function demonstrates proper synchronization and layout management in Vulkan
+    void TransitionImageLayout(vk::raii::CommandBuffer& commandBuffer, vk::Image image, vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout) {
+
+        // This barrier will coordinate memory access and layout transitions
+        vk::ImageMemoryBarrier barrier;
+        barrier.setOldLayout(oldLayout)                                        
+            .setNewLayout(newLayout)                                        
+            .setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)                // No queue family ownership transfer
+            .setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)                // Same queue family throughout
+            .setImage(image)                                                
+            .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}); // Full color image range
+
+        // Initialize pipeline stage tracking for synchronization timing
+        vk::PipelineStageFlags sourceStage;      
+        vk::PipelineStageFlags destinationStage; 
+
+        // Configure synchronization for undefined-to-transfer layout transitions
+        // This pattern is common when preparing images for data uploads
+        if (oldLayout == vk::ImageLayout::eUndefined &&
+            newLayout == vk::ImageLayout::eTransferDstOptimal) {
+
+            // Configure memory access permissions for upload preparation
+            barrier.setSrcAccessMask(vk::AccessFlagBits::eNone)                // No previous access to synchronize
+                .setDstAccessMask(vk::AccessFlagBits::eTransferWrite);         // Enable transfer write operations
+
+            // Set pipeline stage synchronization points for upload workflow
+            sourceStage = vk::PipelineStageFlagBits::eTopOfPipe;               // No previous work to wait for
+            destinationStage = vk::PipelineStageFlagBits::eTransfer;           // Transfer operations can proceed
+
+        // Configure synchronization for transfer-to-shader layout transitions
+        // This pattern prepares uploaded images for shader sampling
+        } else if (oldLayout == vk::ImageLayout::eTransferDstOptimal &&
+                newLayout == vk::ImageLayout::eShaderReadOnlyOptimal) {
+
+            // Configure memory access transition from writing to reading
+            barrier.setSrcAccessMask(vk::AccessFlagBits::eTransferWrite)       // Previous transfer writes must complete
+                .setDstAccessMask(vk::AccessFlagBits::eShaderRead);         // Enable shader read access
+
+            // Set pipeline stage synchronization for shader usage workflow
+            sourceStage = vk::PipelineStageFlagBits::eTransfer;                // Transfer operations must complete
+            destinationStage = vk::PipelineStageFlagBits::eFragmentShader;     // Fragment shaders can access
+
+        } else {
+            // Handle unsupported transition combinations
+            // Production code would include additional common transition patterns
+            throw std::invalid_argument("Unsupported layout transition!");
+        }
+
+        // Execute the pipeline barrier with configured synchronization
+        // This commits the layout transition and memory synchronization to the command buffer
+        commandBuffer.pipelineBarrier(
+            sourceStage,                                                       // Wait for these operations to complete
+            destinationStage,                                                  // Before allowing these operations to begin
+            vk::DependencyFlagBits::eByRegion,                                 // Enable region-local optimizations
+            {}, {}, {barrier}                                                       // Apply our image memory barrier
+        );
+    }
+
+private:
+    std::unordered_map<std::string, ImageResource> m_imageResources;
     std::vector<Pass> m_passes;                             
     std::vector<size_t> m_executionOrder;                   
 
