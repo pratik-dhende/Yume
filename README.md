@@ -13,6 +13,9 @@ The engine currently supports following features:
 - Clone the repo
 - Run `setup.bat` file
 
+## WIP
+- Vulkan framework
+
 ## Demos
 - Interactive Box Demo - Demonstrates mouse-controlled box rotation
 
