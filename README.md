@@ -1,5 +1,5 @@
 # Yume
-## DirectX 12 Graphics Engine
+## DirectX 12 / Vulkan Graphics Engine
 The engine currently supports following features:
 - DirectX 12 Framework
 - Logging System
