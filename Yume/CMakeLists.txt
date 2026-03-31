@@ -39,10 +39,10 @@ file(GLOB_RECURSE ENGINE_SOURCES src/*.cpp)
 add_library(Yume STATIC ${ENGINE_SOURCES})
 
 target_include_directories(Yume
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/Yume/src
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
     INTERFACE
-        ${CMAKE_CURRENT_SOURCE_DIR}/Yume/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 target_link_libraries(Yume

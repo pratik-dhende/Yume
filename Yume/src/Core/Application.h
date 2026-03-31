@@ -5,8 +5,6 @@
 
 namespace Yume {
 
-extern std::unique_ptr<Application> CreateApplication();
-
 class Application {
 
 public:
