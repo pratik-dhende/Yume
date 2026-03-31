@@ -3,7 +3,6 @@
 #include "ECS/Components.h"
 #include "ECS/Entity.h"
 #include "ECS/Component.h"
-#include "ECS/EventSystem.h"
 
 #include "Rendering/Resources/Material.h"
 #include "Rendering/Resources/Mesh.h"
@@ -22,6 +21,11 @@
 #include "Scene/CullingSystem.h"
 #include "Scene/Camera.h"
 #include "Scene/BoundingBox.h"
+
+#include "EventSystem/Event.h"
+#include "EventSystem/EventListener.h"
+#include "EventSystem/EventDispatcher.h"
+#include "EventSystem/EventBus.h"
 
 int main() {
 	std::cout << "Hello, Yume!" << std::endl;
