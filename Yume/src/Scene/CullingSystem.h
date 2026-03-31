@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Camera.h"
-#include "Components.h"
-#include "Entity.h"
+#include "Scene/Camera.h"
+#include "ECS/Components.h"
+#include "ECS/Entity.h"
 
 namespace Yume {
 

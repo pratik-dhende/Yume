@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ResourceManager.h"
-#include "Texture.h"
+#include "Rendering/Resources/Texture.h"
 
 #include <thread>
 #include <filesystem>

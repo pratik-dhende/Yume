@@ -382,15 +382,64 @@ private:
         );
     }
 
-private:
-    std::unordered_map<std::string, ImageResource> m_imageResources;
-    std::vector<Pass> m_passes;                             
-    std::vector<size_t> m_executionOrder;                   
+    void RenderFrame(vk::raii::Device& device, vk::Queue graphicsQueue, vk::Queue presentQueue) {
+        // Synchronize with previous frame completion
+        // Prevent CPU from submitting work faster than GPU can process it
+        vk::Result waitFenceResult = device.waitForFences(vk::ArrayProxy<const vk::Fence>{*m_inFlightFence}, true, UINT64_MAX);
 
-    std::vector<vk::raii::Semaphore> m_semaphores;          
-    std::vector<std::pair<size_t, size_t>> m_semaphoreSignalWaitPairs;
+        // Reset fence for this frame's completion tracking
+        // Prepare the fence to signal when this frame's GPU work completes
+        device.resetFences(vk::ArrayProxy<const vk::Fence>{*m_inFlightFence});
 
-    vk::raii::Device& m_device;
+        // Acquire next available image from the swapchain
+        // This operation coordinates with the presentation engine and display system
+        auto imageIndex = m_swapchain.acquireNextImage(UINT64_MAX, *m_imageAvailableSemaphore).value;
+
+        // Configure GPU work submission with comprehensive synchronization
+        // This submission coordinates image availability, rendering, and presentation readiness
+        vk::SubmitInfo submitInfo;
+        vk::PipelineStageFlags waitStages[] = {vk::PipelineStageFlagBits::eColorAttachmentOutput};
+
+        submitInfo.setWaitSemaphoreCount(1)                                    // Wait for one semaphore before execution
+                .setPWaitSemaphores(&*m_imageAvailableSemaphore)               // Don't start until image is available
+                .setPWaitDstStageMask(waitStages)                            // Specifically wait before color output
+                .setCommandBufferCount(1)                                    // Submit one command buffer
+                .setPCommandBuffers(&*m_commandBuffer)                        // The recorded rendering commands
+                .setSignalSemaphoreCount(1)                                  // Signal one semaphore when complete
+                .setPSignalSemaphores(&*m_renderFinishedSemaphore);            // Notify when rendering is finished
+
+        // Submit work to GPU with fence-based completion tracking
+        // The fence allows CPU to know when this frame's GPU work has completed
+        graphicsQueue.submit(submitInfo, *m_inFlightFence);
+
+        // Present the rendered image to the display
+        // This operation transfers the completed frame from rendering to display system
+        vk::PresentInfoKHR presentInfo;
+        presentInfo.setWaitSemaphoreCount(1)                                   // Wait for rendering completion
+               .setPWaitSemaphores(&*m_renderFinishedSemaphore)              // Don't present until rendering finishes
+               .setSwapchainCount(1)                                       // Present to one swapchain
+               .setPSwapchains(&*m_swapchain)                                // Target swapchain for presentation
+               .setPImageIndices(&imageIndex);                             // Present the image we rendered to
+
+        // Submit presentation request to the presentation engine
+        presentQueue.presentKHR(presentInfo);
+    }
+    
+    private:
+        std::unordered_map<std::string, ImageResource> m_imageResources;
+        std::vector<Pass> m_passes;                             
+        std::vector<size_t> m_executionOrder;                   
+
+        std::vector<vk::raii::Semaphore> m_semaphores;   
+        vk::raii::Semaphore m_imageAvailableSemaphore = nullptr;  
+        vk::raii::Semaphore m_renderFinishedSemaphore = nullptr; 
+        vk::raii::SwapchainKHR m_swapchain = nullptr;    
+        std::vector<std::pair<size_t, size_t>> m_semaphoreSignalWaitPairs;
+
+        vk::raii::Fence m_inFlightFence = nullptr;
+        vk::raii::CommandBuffer m_commandBuffer = nullptr;
+
+        vk::raii::Device& m_device;
 };
 
 }

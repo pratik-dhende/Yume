@@ -2,9 +2,9 @@
 
 #include "Component.h"
 #include "Entity.h"
-#include "Material.h"
-#include "Mesh.h"
-#include "BoundingBox.h"
+#include "Rendering/Resources/Material.h"
+#include "Rendering/Resources/Mesh.h"
+#include "Scene/BoundingBox.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>

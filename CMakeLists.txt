@@ -25,8 +25,14 @@ FetchContent_MakeAvailable(glm)
 
 # ---- Executable ----
 add_executable(Yume
-    Yume/src/ResourceManager.cpp
+    Yume/src/Resources/ResourceManager.cpp
     Yume/src/main.cpp
+)
+
+# ---- Include Directories ----
+target_include_directories(Yume
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Yume/src
 )
 
 # ---- Link Dependencies (Modern CMake) ----
