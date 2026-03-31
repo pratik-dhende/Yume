@@ -27,6 +27,8 @@ FetchContent_MakeAvailable(glm)
 add_executable(Yume
     Yume/src/Resources/ResourceManager.cpp
     Yume/src/main.cpp
+    Yume/src/Scene/Camera.cpp
+    Yume/src/Scene/ThirdPersonCamera.cpp
 )
 
 # ---- Include Directories ----

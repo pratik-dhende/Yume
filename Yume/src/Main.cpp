@@ -20,6 +20,7 @@
 
 #include "Scene/CullingSystem.h"
 #include "Scene/Camera.h"
+#include "Scene/ThirdPersonCamera.h"
 #include "Scene/BoundingBox.h"
 
 #include "EventSystem/Event.h"
