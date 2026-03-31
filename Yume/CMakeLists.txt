@@ -43,6 +43,7 @@ target_include_directories(Yume
         ${CMAKE_CURRENT_SOURCE_DIR}/src
     INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${glfw_SOURCE_DIR}/include
 )
 
 target_link_libraries(Yume
