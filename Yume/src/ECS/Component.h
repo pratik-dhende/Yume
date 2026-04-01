@@ -14,8 +14,6 @@ private:
 	static size_t m_nextTypeId;
 };
 
-size_t ComponentTypeIdSystem::m_nextTypeId = 0;
-
 class Entity;
 
 class Component {

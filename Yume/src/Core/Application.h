@@ -4,6 +4,8 @@
 #include <memory>
 #include <GLFW/glfw3.h>
 
+#include "Rendering/Core/Renderer.h"
+
 namespace Yume {
 
 class Application {
@@ -28,9 +30,11 @@ private:
     std::string m_title;
 
     GLFWwindow* m_window;
+    std::unique_ptr<Renderer> m_renderer;
 
 private:
     void InitWindow();
+    void InitRenderer();
     void DestroyWindow();
     void MainLoop();
 

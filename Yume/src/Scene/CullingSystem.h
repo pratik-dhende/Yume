@@ -9,7 +9,7 @@ namespace Yume {
 class CullingSystem {
 
 public:
-    explicit CullingSystem(Camera* camera) : m_camera(camera) {}
+    explicit CullingSystem(Camera* camera = nullptr) : m_camera(camera) {}
 
     void SetCamera(Camera* camera) {
         m_camera = camera;

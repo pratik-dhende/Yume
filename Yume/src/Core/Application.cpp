@@ -1,9 +1,11 @@
 #include "Application.h"
+#include "Rendering/Core/Renderer.h"
 
 namespace Yume {
 
 void Application::Run() {
     InitWindow();
+    InitRenderer();
 
     Init();
     MainLoop();
@@ -25,6 +27,17 @@ void Application::InitWindow() {
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE); // No resizing
 
     m_window = glfwCreateWindow(m_width, m_height, m_title.c_str(), nullptr, nullptr);
+}
+
+void Application::InitRenderer() {
+#ifdef NDEBUG
+    constexpr bool enableValidationLayers = false;
+#else
+    constexpr bool enableValidationLayers = true;
+#endif
+
+    m_renderer = std::make_unique<Renderer>(enableValidationLayers);
+    m_renderer->Init();
 }
 
 void Application::DestroyWindow() {

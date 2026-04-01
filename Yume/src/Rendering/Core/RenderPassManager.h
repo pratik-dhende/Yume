@@ -8,6 +8,8 @@
 #include <memory>
 #include <vulkan/vulkan_raii.hpp>
 
+#include "RenderPass.h"
+
 namespace Yume {
 
 class RenderPass;

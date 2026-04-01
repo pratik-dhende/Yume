@@ -69,4 +69,14 @@ void Camera::ProcessMouseMovement(float xOffset, float yOffset, bool constrainPi
     updateCameraVectors();
 }
 
+Frustum Camera::GetFrustum() const {
+    // TODO: Implement frustum extraction from camera
+    return Frustum();
+}
+
+bool Frustum::Intersects(const BoundingBox& box) const {
+    // TODO: Implement frustum-bounding box intersection test
+    return true;
+}
+
 }

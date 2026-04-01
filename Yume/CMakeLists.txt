@@ -47,8 +47,9 @@ target_include_directories(Yume
 )
 
 target_link_libraries(Yume
-    PRIVATE
+    PUBLIC
         Vulkan::Vulkan
+    PRIVATE
         glm::glm
         glfw
 )
