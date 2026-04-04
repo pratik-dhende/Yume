@@ -29,6 +29,7 @@ public:
 
 private:
     static const std::vector<char const*> s_validationLayers;
+    static const std::vector<const char*> s_requiredDeviceExtensions;
     static VKAPI_ATTR vk::Bool32 VKAPI_CALL DebugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT severity, vk::DebugUtilsMessageTypeFlagsEXT type, const vk::DebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
 
 private:
@@ -36,6 +37,9 @@ private:
     void CreateInstance();
     std::vector<const char*> GetRequiredInstanceExtensions();
     void SetupDebugMessenger();
+
+    void SelectPhysicalDevice();
+    bool IsDeviceSuitable(const vk::raii::PhysicalDevice& device);
 
     void SetupRenderPasses() {
         // Create geometry pass
@@ -65,6 +69,7 @@ private:
     vk::raii::Fence m_fence = nullptr;
     vk::raii::Semaphore m_imageAvailableSemaphore = nullptr;
     vk::raii::Semaphore m_renderFinishedSemaphore = nullptr;
+    vk::raii::PhysicalDevice m_physicalDevice = nullptr;
 
     bool m_enableValidationLayers = false;
 };

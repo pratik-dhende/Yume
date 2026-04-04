@@ -1,4 +1,6 @@
 #include <iostream>
+#include <map>
+#include <vector>
 
 #include "Renderer.h"
 
@@ -8,13 +10,15 @@ const std::vector<char const*> Renderer::s_validationLayers = {
     "VK_LAYER_KHRONOS_validation"
 };
 
+const std::vector<const char*> Renderer::s_requiredDeviceExtensions = {vk::KHRSwapchainExtensionName};
+
 Renderer::Renderer(const bool enableValidationLayer) : m_enableValidationLayers(enableValidationLayer) {
     SetupRenderPasses();
 }
 
 void Renderer::Render(const std::vector<Entity*>& entities) {
     // Wait for previous frame to finish
-    m_device.waitForFences(*m_fence, VK_TRUE, UINT64_MAX);
+    auto fenceWaitResult = m_device.waitForFences(*m_fence, VK_TRUE, UINT64_MAX);
     m_device.resetFences(*m_fence);
 
     // Reset command buffer
@@ -55,7 +59,7 @@ void Renderer::Render(const std::vector<Entity*>& entities) {
 
     // With vk::raii, we need to dereference the fence
     vk::Fence rawFence = *m_fence;
-    m_graphicsQueue.submit(1, &submitInfo, rawFence);
+    auto queueSubmitResult = m_graphicsQueue.submit(1, &submitInfo, rawFence);
 }
 
 void Renderer::Init() {
@@ -65,6 +69,47 @@ void Renderer::Init() {
 void Renderer::InitVulkan() {
     CreateInstance();
     SetupDebugMessenger();
+    SelectPhysicalDevice();
+}
+
+void Renderer::SelectPhysicalDevice() {
+    std::vector<vk::raii::PhysicalDevice> physicalDevices = m_instance.enumeratePhysicalDevices();
+    auto const selectedDeviceIter = std::ranges::find_if( physicalDevices, [&]( auto const & physicalDevice ) { return IsDeviceSuitable( physicalDevice ); } );
+    if ( selectedDeviceIter == physicalDevices.end() )
+    {
+        throw std::runtime_error( "failed to find a suitable GPU!" );
+    }
+    m_physicalDevice = *selectedDeviceIter;
+}
+
+bool Renderer::IsDeviceSuitable(const vk::raii::PhysicalDevice& device) {
+    // Check if the physicalDevice supports the Vulkan 1.3 API version
+    bool supportsVulkan1_3 = device.getProperties().apiVersion >= vk::ApiVersion13;
+
+    // Check if any of the queue families support graphics operations
+    auto queueFamilies = device.getQueueFamilyProperties();
+    bool supportsGraphics = std::ranges::any_of( queueFamilies, []( auto const & qfp ) { return !!( qfp.queueFlags & vk::QueueFlagBits::eGraphics ); } );
+
+    // Check if all required physicalDevice extensions are available
+    auto availableDeviceExtensions = device.enumerateDeviceExtensionProperties();
+    bool supportsAllRequiredExtensions =
+    std::ranges::all_of( s_requiredDeviceExtensions,
+                            [&availableDeviceExtensions]( auto const & requiredDeviceExtension )
+                            {
+                            return std::ranges::any_of( availableDeviceExtensions,
+                                                        [requiredDeviceExtension]( auto const & availableDeviceExtension )
+                                                        { return strcmp( availableDeviceExtension.extensionName, requiredDeviceExtension ) == 0; } );
+                            } );
+
+    // Check if the physicalDevice supports the required features (dynamic rendering and extended dynamic state)
+    auto features =
+    device
+        .template getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>();
+    bool supportsRequiredFeatures = features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering &&
+                                    features.template get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState;
+
+    // Return true if the physicalDevice meets all the criteria
+    return supportsVulkan1_3 && supportsGraphics && supportsAllRequiredExtensions && supportsRequiredFeatures;
 }
 
 void Renderer::SetupDebugMessenger()
@@ -152,9 +197,8 @@ VKAPI_ATTR vk::Bool32 VKAPI_CALL Renderer::DebugCallback(vk::DebugUtilsMessageSe
                                                       const vk::DebugUtilsMessengerCallbackDataEXT * pCallbackData,
                                                       void *                                         pUserData)
 {
-  std::cerr << "validation layer: type " << to_string(type) << " msg: " << pCallbackData->pMessage << std::endl;
-
-  return vk::False;
+    std::cerr << "validation layer: type " << to_string(type) << " msg: " << pCallbackData->pMessage << std::endl;
+    return vk::False;
 }
 
 }
