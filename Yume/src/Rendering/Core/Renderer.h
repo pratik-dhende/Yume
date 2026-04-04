@@ -40,6 +40,7 @@ private:
 
     void SelectPhysicalDevice();
     bool IsDeviceSuitable(const vk::raii::PhysicalDevice& device);
+    void CreateLogicalDevice();
 
     void SetupRenderPasses() {
         // Create geometry pass
@@ -58,7 +59,7 @@ private:
     vk::raii::DebugUtilsMessengerEXT m_debugMessenger = nullptr;
 
     vk::raii::Device m_device = nullptr;
-    vk::Queue m_graphicsQueue;
+    vk::Queue m_tmpGraphicsQueue;
     vk::raii::CommandPool m_commandPool = nullptr;
 
     RenderPassManager m_renderPassManager;
@@ -69,7 +70,12 @@ private:
     vk::raii::Fence m_fence = nullptr;
     vk::raii::Semaphore m_imageAvailableSemaphore = nullptr;
     vk::raii::Semaphore m_renderFinishedSemaphore = nullptr;
+
     vk::raii::PhysicalDevice m_physicalDevice = nullptr;
+    vk::raii::Device m_logicalDevice = nullptr;
+    vk::raii::Queue m_graphicsQueue = nullptr;
+
+    vk::PhysicalDeviceFeatures m_deviceFeatures;
 
     bool m_enableValidationLayers = false;
 };

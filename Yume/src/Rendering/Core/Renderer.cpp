@@ -59,7 +59,7 @@ void Renderer::Render(const std::vector<Entity*>& entities) {
 
     // With vk::raii, we need to dereference the fence
     vk::Fence rawFence = *m_fence;
-    auto queueSubmitResult = m_graphicsQueue.submit(1, &submitInfo, rawFence);
+    auto queueSubmitResult = m_tmpGraphicsQueue.submit(1, &submitInfo, rawFence);
 }
 
 void Renderer::Init() {
@@ -70,6 +70,35 @@ void Renderer::InitVulkan() {
     CreateInstance();
     SetupDebugMessenger();
     SelectPhysicalDevice();
+    CreateLogicalDevice();
+}
+
+void Renderer::CreateLogicalDevice() {
+    std::vector<vk::QueueFamilyProperties> queueFamilyProperties = m_physicalDevice.getQueueFamilyProperties();
+    
+    auto graphicsQueueFamilyProperty = std::ranges::find_if(queueFamilyProperties, [](auto const &qfp) { return (qfp.queueFlags & vk::QueueFlagBits::eGraphics) != static_cast<vk::QueueFlags>(0); });
+    auto graphicsIndex = static_cast<uint32_t>(std::distance(queueFamilyProperties.begin(), graphicsQueueFamilyProperty));
+    
+    float queuePriority = 0.5f;
+    vk::DeviceQueueCreateInfo deviceQueueCreateInfo { .queueFamilyIndex = graphicsIndex, .queueCount = 1, .pQueuePriorities = &queuePriority };
+
+    // Create a chain of feature structures
+    vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT> featureChain = {
+        {},                               // vk::PhysicalDeviceFeatures2 (empty for now)
+        {.dynamicRendering = true },      // Enable dynamic rendering from Vulkan 1.3
+        {.extendedDynamicState = true }   // Enable extended dynamic state from the extension
+    };
+
+    vk::DeviceCreateInfo deviceCreateInfo{
+        .pNext = &featureChain.get<vk::PhysicalDeviceFeatures2>(),
+        .queueCreateInfoCount = 1,
+        .pQueueCreateInfos = &deviceQueueCreateInfo,
+        .enabledExtensionCount = static_cast<uint32_t>(s_requiredDeviceExtensions.size()),
+        .ppEnabledExtensionNames = s_requiredDeviceExtensions.data()
+    };
+
+    m_logicalDevice = vk::raii::Device(m_physicalDevice, deviceCreateInfo);
+    m_graphicsQueue = vk::raii::Queue( m_logicalDevice, graphicsIndex, 0 );
 }
 
 void Renderer::SelectPhysicalDevice() {
@@ -82,16 +111,16 @@ void Renderer::SelectPhysicalDevice() {
     m_physicalDevice = *selectedDeviceIter;
 }
 
-bool Renderer::IsDeviceSuitable(const vk::raii::PhysicalDevice& device) {
+bool Renderer::IsDeviceSuitable(const vk::raii::PhysicalDevice& physicalDevice) {
     // Check if the physicalDevice supports the Vulkan 1.3 API version
-    bool supportsVulkan1_3 = device.getProperties().apiVersion >= vk::ApiVersion13;
+    bool supportsVulkan1_3 = physicalDevice.getProperties().apiVersion >= vk::ApiVersion13;
 
     // Check if any of the queue families support graphics operations
-    auto queueFamilies = device.getQueueFamilyProperties();
+    auto queueFamilies = physicalDevice.getQueueFamilyProperties();
     bool supportsGraphics = std::ranges::any_of( queueFamilies, []( auto const & qfp ) { return !!( qfp.queueFlags & vk::QueueFlagBits::eGraphics ); } );
 
     // Check if all required physicalDevice extensions are available
-    auto availableDeviceExtensions = device.enumerateDeviceExtensionProperties();
+    auto availableDeviceExtensions = physicalDevice.enumerateDeviceExtensionProperties();
     bool supportsAllRequiredExtensions =
     std::ranges::all_of( s_requiredDeviceExtensions,
                             [&availableDeviceExtensions]( auto const & requiredDeviceExtension )
@@ -103,7 +132,7 @@ bool Renderer::IsDeviceSuitable(const vk::raii::PhysicalDevice& device) {
 
     // Check if the physicalDevice supports the required features (dynamic rendering and extended dynamic state)
     auto features =
-    device
+    physicalDevice
         .template getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>();
     bool supportsRequiredFeatures = features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering &&
                                     features.template get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState;
