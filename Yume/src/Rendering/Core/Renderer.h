@@ -15,7 +15,7 @@ namespace Yume {
 class Renderer {
 
 public:
-    Renderer(const bool enableValidationLayer);
+    Renderer(const bool enableValidationLayer, GLFWwindow* window);
 
     void Init();
 
@@ -41,6 +41,13 @@ private:
     void SelectPhysicalDevice();
     bool IsDeviceSuitable(const vk::raii::PhysicalDevice& device);
     void CreateLogicalDevice();
+    void CreateSurface();
+    void CreateSwapChain();
+
+    vk::SurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
+    vk::PresentModeKHR ChooseSwapPresentMode(std::vector<vk::PresentModeKHR> const &availablePresentModes);
+    vk::Extent2D ChooseSwapExtent(vk::SurfaceCapabilitiesKHR const &capabilities);
+    uint32_t ChooseSwapMinImageCount(vk::SurfaceCapabilitiesKHR const &surfaceCapabilities);
 
     void SetupRenderPasses() {
         // Create geometry pass
@@ -75,8 +82,17 @@ private:
     vk::raii::Device m_logicalDevice = nullptr;
     vk::raii::Queue m_graphicsQueue = nullptr;
 
+    vk::raii::SurfaceKHR m_surface = nullptr;
+    vk::raii::SwapchainKHR m_swapChain = nullptr;
+    
+    std::vector<vk::Image> m_swapChainImages;
+    vk::SurfaceFormatKHR m_swapChainSurfaceFormat;
+    vk::Extent2D m_swapChainExtent;
+
     vk::PhysicalDeviceFeatures m_deviceFeatures;
 
     bool m_enableValidationLayers = false;
+
+    GLFWwindow* m_window = nullptr;
 };
 }

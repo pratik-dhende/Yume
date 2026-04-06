@@ -36,7 +36,7 @@ void Application::InitRenderer() {
     constexpr bool enableValidationLayers = true;
 #endif
 
-    m_renderer = std::make_unique<Renderer>(enableValidationLayers);
+    m_renderer = std::make_unique<Renderer>(enableValidationLayers, m_window);
     m_renderer->Init();
 }
 

@@ -87,11 +87,11 @@ private:
 
 class CameraComponent : public Component {
 public:
-	void SetPerspective(float fov, float aspectRatio, float near, float far) {
+	void SetPerspective(float fov, float aspectRatio, float nearDist, float farDist) {
 		m_fov = fov;
 		m_aspectRatio = aspectRatio;
-		m_near = near;
-		m_far = far;
+		m_near = nearDist;
+		m_far = farDist;
 	}
 
 	glm::mat4 GetViewMatrix() const {
