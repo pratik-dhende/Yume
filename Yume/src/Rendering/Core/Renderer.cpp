@@ -83,6 +83,22 @@ void Renderer::CreateSurface() {
     m_surface = vk::raii::SurfaceKHR(m_instance, _surface);
 }
 
+void Renderer::CreateImageViews() {
+    assert(m_swapChainImageViews.empty());
+
+    vk::ImageViewCreateInfo imageViewCreateInfo{ .viewType         = vk::ImageViewType::e2D,
+                                                 .format           = m_swapChainSurfaceFormat.format,
+                                                 .subresourceRange = imageViewCreateInfo.subresourceRange = {.aspectMask = vk::ImageAspectFlagBits::eColor, .levelCount = 1, .layerCount = 1} };
+
+    imageViewCreateInfo.components = { vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity};
+
+    for (auto &image : m_swapChainImages)
+    {
+        imageViewCreateInfo.image = image;
+        m_swapChainImageViews.emplace_back( m_logicalDevice, imageViewCreateInfo );
+    }
+}
+
 void Renderer::CreateSwapChain() {
     vk::SurfaceCapabilitiesKHR surfaceCapabilities = m_physicalDevice.getSurfaceCapabilitiesKHR(*m_surface);
     m_swapChainExtent = ChooseSwapExtent(surfaceCapabilities);
