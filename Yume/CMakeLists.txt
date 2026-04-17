@@ -59,3 +59,5 @@ target_compile_definitions(Yume
         VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
         GLFW_INCLUDE_VULKAN
 )
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
