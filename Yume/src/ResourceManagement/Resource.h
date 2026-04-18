@@ -58,9 +58,9 @@ public:
         return m_loaded;
     }
 
-    virtual void Unload() {
-        DoUnload();
-        m_loaded = false;
+    virtual bool Unload() {
+        m_loaded = !DoUnload();
+        return !m_loaded;
     }
 
 protected:

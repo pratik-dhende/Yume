@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Resources/Resource.h"
+#include "ResourceManagement/Resource.h"
 
 #include <string>
 #include <vulkan/vulkan.hpp>
@@ -15,7 +15,12 @@ public:
         Unload();                 
     }
 
-    bool Load() override {
+    vk::Image GetImage() const { return m_image; }
+    vk::ImageView GetImageView() const { return m_imageView; }
+    vk::Sampler GetSampler() const { return m_sampler; }
+
+protected:
+     bool DoLoad() override {
         std::string filePath = "textures/" + GetId() + ".ktx";
 
         unsigned char* data = LoadImageData(filePath, &m_width, &m_height, &m_channels);
@@ -27,10 +32,10 @@ public:
 
         FreeImageData(data);
 
-        return Resource::Load();
+        return true;
     }
 
-    void Unload() override {
+    bool DoUnload() override {
         if (IsLoaded()) {
             vk::Device device = GetDevice();
 
@@ -39,20 +44,7 @@ public:
             device.destroyImageView(m_imageView);   
             device.destroyImage(m_image);           
             device.freeMemory(m_memory);            
-
-            Resource::Unload();
         }
-    }
-
-    vk::Image GetImage() const { return m_image; }
-    vk::ImageView GetImageView() const { return m_imageView; }
-    vk::Sampler GetSampler() const { return m_sampler; }
-
-    bool DoLoad() override {
-        return true;
-    }
-
-    bool DoUnload() override {
         return true;
     }
 

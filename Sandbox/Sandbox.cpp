@@ -1,5 +1,3 @@
-#pragma once
-
 #include "Yume/Yume.h"
 
 class Sandbox : public Yume::Application {

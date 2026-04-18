@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Resources/Resource.h"
+#include "ResourceManagement/Resource.h"
 
 #include <string>
 #include <vector>
@@ -22,7 +22,15 @@ public:
         Unload();                           
     }
 
-	bool Load() override {
+    vk::Buffer GetVertexBuffer() const { return m_vertexBuffer; }
+    vk::Buffer GetIndexBuffer() const { return m_indexBuffer; }
+    uint32_t GetVertexCount() const { return m_vertexCount; }
+    uint32_t GetIndexCount() const { return m_indexCount; }
+
+	void Render();
+
+protected:
+	bool DoLoad() override {
         std::string filePath = "models/" + GetId() + ".gltf";
 
         std::vector<Vertex> vertices;      
@@ -37,10 +45,10 @@ public:
         m_vertexCount = static_cast<uint32_t>(vertices.size());
         m_indexCount = static_cast<uint32_t>(indices.size());
 
-        return Resource::Load();            
+        return true;   
     }
 
-	void Unload() override {
+	bool DoUnload() override {
         if (IsLoaded()) {
             vk::Device device = GetDevice();
 
@@ -52,17 +60,9 @@ public:
             // Vertex resources cleaned up second
             device.destroyBuffer(m_vertexBuffer);        
             device.freeMemory(m_vertexBufferMemory);     
-
-            Resource::Unload();
         }
+        return true;
     }
-
-    vk::Buffer GetVertexBuffer() const { return m_vertexBuffer; }
-    vk::Buffer GetIndexBuffer() const { return m_indexBuffer; }
-    uint32_t GetVertexCount() const { return m_vertexCount; }
-    uint32_t GetIndexCount() const { return m_indexCount; }
-
-	void Render();
 
 private:
 	bool LoadMeshData(const std::string& filePath, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices) {

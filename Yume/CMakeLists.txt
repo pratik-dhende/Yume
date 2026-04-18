@@ -12,6 +12,7 @@ find_package(Vulkan ${MIN_VULKAN_VERSION} REQUIRED)
 
 message(STATUS "Found Vulkan SDK: ${Vulkan_VERSION}")
 
+find_package(slang CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 
@@ -29,6 +30,7 @@ target_include_directories(Yume
 target_link_libraries(Yume
     PUBLIC
         Vulkan::Vulkan
+        slang::slang
         glfw
         glm::glm-header-only
 )

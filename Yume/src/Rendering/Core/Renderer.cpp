@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "Renderer.h"
+#include "Rendering/Resources/Shader.h"
 
 namespace Yume {
 
@@ -10,7 +11,7 @@ const std::vector<char const*> Renderer::s_validationLayers = {
     "VK_LAYER_KHRONOS_validation"
 };
 
-const std::vector<const char*> Renderer::s_requiredDeviceExtensions = {vk::KHRSwapchainExtensionName};
+const std::vector<const char*> Renderer::s_requiredDeviceExtensions = { vk::KHRSwapchainExtensionName, vk::KHRShaderDrawParametersExtensionName };
 
 Renderer::Renderer(const bool enableValidationLayer, GLFWwindow* window) : m_enableValidationLayers(enableValidationLayer), m_window(window) {
     SetupRenderPasses();
@@ -73,6 +74,12 @@ void Renderer::InitVulkan() {
     SelectPhysicalDevice();
     CreateLogicalDevice();
     CreateSwapChain();
+    CreateGraphicsPipeline();
+}
+
+void Renderer::CreateGraphicsPipeline() {
+    Shader shader("shader", vk::ShaderStageFlagBits::eVertex, m_logicalDevice);
+    shader.Load();
 }
 
 void Renderer::CreateSurface() {

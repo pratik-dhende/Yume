@@ -1,10 +1,9 @@
-#pragma once
-
 #include "Resource.h"
 
 #include <unordered_map>
 #include <memory>
 #include <typeindex>
+#include <type_traits>
 
 namespace Yume
 {
@@ -47,7 +46,7 @@ T* ResourceManager::GetResource(const std::string& resourceId) {
         return nullptr;
     }
 
-    return static_cast<T*>(it->second.get());
+    return static_cast<T*>(it->second.resource.get());
 }
 
 template<typename T>
@@ -58,8 +57,8 @@ bool ResourceManager::HasResource(const std::string& resourceId) {
         return false;
     }
 
-    auto& typeResources = m_resources[std::type_index(typeid(T))];
-    return m_resources.find(typeIndex) != m_resources.end();
+    auto& typeResources = m_resources[typeIndex];
+    return typeResources.find(resourceId) != typeResources.end();
 }
 
 template<typename T>

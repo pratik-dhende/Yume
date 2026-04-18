@@ -44,6 +44,7 @@ private:
     void CreateSurface();
     void CreateSwapChain();
     void CreateImageViews();
+    void CreateGraphicsPipeline();
 
     vk::SurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
     vk::PresentModeKHR ChooseSwapPresentMode(std::vector<vk::PresentModeKHR> const &availablePresentModes);
