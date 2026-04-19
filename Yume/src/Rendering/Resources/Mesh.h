@@ -30,7 +30,7 @@ public:
 	void Render();
 
 protected:
-	bool DoLoad(const std::string& filepath) override {
+	bool DoLoad() override {
         std::string filePath = "models/" + GetId() + ".gltf";
 
         std::vector<Vertex> vertices;      

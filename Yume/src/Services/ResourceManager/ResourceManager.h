@@ -11,6 +11,8 @@
 #include <type_traits>
 #include <stdexcept>
 #include <filesystem>
+#include <algorithm>
+#include <fstream>
 
 namespace Yume
 {
@@ -18,7 +20,10 @@ namespace Yume
 template<typename T>
 class ResourceHandle;
 
+using Path = std::filesystem::path;
+
 class ResourceManager : public ServiceLocator::IService {
+protected:
     inline static constexpr const char* ASSETS_DIRECTORY = "assets/";
     inline static constexpr const char* SHADERS_DIRECTORY = "shaders/";
 
@@ -59,7 +64,26 @@ public:
 
     template<typename T, typename... ResourceConstructionArgs>
     ResourceHandle<T> Load(const std::string& resourceId, ResourceConstructionArgs&&... resourceConstructionArgs) {
-        return Load<T, ResourceConstructionArgs...>(resourceId, false, std::forward<ResourceConstructionArgs>(resourceConstructionArgs)...);
+        static_assert(std::is_base_of<Resource, T>::value, "T must derive from Resource");
+
+        auto& typeResources = m_resources[std::type_index(typeid(T))];
+        auto it = typeResources.find(resourceId);
+
+        if (it != typeResources.end()) {
+            ++typeResources[resourceId].refCount;
+            return ResourceHandle<T>(resourceId, this);
+        }
+
+        auto resource = std::make_unique<T>(resourceId, std::forward<ResourceConstructionArgs>(resourceConstructionArgs)...);
+        if (!resource->Load()) {
+            return ResourceHandle<T>();
+        }
+
+        auto& resourceData = typeResources[resourceId];
+        resourceData.resource = std::move(resource);
+        ++resourceData.refCount;
+
+        return ResourceHandle<T>(resourceId, this);
     }
 
     template<typename T>
@@ -97,54 +121,73 @@ public:
         m_resources.clear();
     }
 
-protected:
-    template<typename T, typename... ResourceConstructionArgs>
-    ResourceHandle<T> Load(const std::string& resourceId, bool force_reload, ResourceConstructionArgs&&... resourceConstructionArgs) {
-        static_assert(std::is_base_of<Resource, T>::value, "T must derive from Resource");
+    template<typename T>
+    bool ReadFile(const std::string& resourceId, std::vector<char>& buffer) {
+        auto filePath = GetNormalizedAssetPath<T>(resourceId).string();
 
-        auto& typeResources = m_resources[std::type_index(typeid(T))];
-        auto it = typeResources.find(resourceId);
+        std::ifstream file(filePath, std::ios::ate);
 
-        if (it != typeResources.end()) {
-            ++typeResources[resourceId].refCount;
-            if (force_reload) {
-                it->second.resource->Unload();
-                it->second.resource->Load(GetAssetPath<T>(resourceId));
-            }
-            return ResourceHandle<T>(resourceId, this);
+        if (!file.is_open()) {
+            throw std::runtime_error("failed to open file!");
         }
 
-        auto resource = std::make_unique<T>(resourceId, std::forward<ResourceConstructionArgs>(resourceConstructionArgs)...);
-        if (!resource->Load(GetAssetPath<T>(resourceId))) {
-            return ResourceHandle<T>();
-        }
+        buffer.resize(file.tellg());
+        file.seekg(0, std::ios::beg);
+        file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
 
-        auto& resourceData = typeResources[resourceId];
-        resourceData.resource = std::move(resource);
-        ++resourceData.refCount;
+        file.close();
 
-        return ResourceHandle<T>(resourceId, this);
+        return true;
     }
-
-private:
 
     template<typename T>
     std::string GetAssetPath(const std::string& resourceId) {
-        auto it = m_assetTypeDirs.find(std::type_index(typeid(T)));
-        if (it != m_assetTypeDirs.end()) {
-            auto assetPath = std::filesystem::absolute(ASSETS_DIRECTORY) / it->second / resourceId;
-            return assetPath.string();
-        } else {
-            throw std::runtime_error("Unsupported asset type: " + std::string(typeid(T).name()));
-        }
+        return GetNormalizedAssetPath<T>(resourceId).generic_string();
     }
 
-private:
+
+protected:
     struct ResourceData {
         std::unique_ptr<Resource> resource;
         int refCount = 0;
     };
 
+    template<typename T>
+    ResourceData& GetResourceData(const std::string& resourceId) {
+        auto typeIndex = std::type_index(typeid(T));
+
+        if (m_resources.find(typeIndex) == m_resources.end()) {
+            throw std::runtime_error("Resource type not found: " + std::string(typeid(T).name()));
+        }
+
+        auto& typeResources = m_resources[typeIndex];
+        auto it = typeResources.find(resourceId);
+        if (it == typeResources.end()) {
+            throw std::runtime_error("Resource not found: " + resourceId);
+        }
+
+        return it->second;
+    }
+
+    template<typename T>
+    Path GetNormalizedAssetPath(const std::string& resourceId) {
+        auto it = m_assetTypeDirs.find(std::type_index(typeid(T)));
+        if (it != m_assetTypeDirs.end()) {
+            return ToNormalizedPath(ASSETS_DIRECTORY + it->second + resourceId);
+        } else {
+            throw std::runtime_error("Unsupported asset type: " + std::string(typeid(T).name()));
+        }
+    }
+
+    static Path ToNormalizedPath(const std::string& filePath) {
+        return std::filesystem::absolute(filePath).lexically_normal();
+    }
+
+    static auto SubPath(const Path& path, const Path& subPath) {
+        return std::search(path.begin(), path.end(), subPath.begin(), subPath.end());
+    }
+
+private:
     std::unordered_map<std::type_index, std::unordered_map<std::string, ResourceData>> m_resources;
 };
 

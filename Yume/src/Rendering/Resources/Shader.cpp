@@ -1,7 +1,7 @@
 #include "Shader.h"
 #include "Services/ShaderCompiler.h"
 #include "Services/ResourceManager/Resource.h"
-#include "Services/FileUtils.h"
+#include "Services/ResourceManager/HotReloadResourceManager.h"
 
 #include <string>
 #include <vulkan/vulkan.hpp>
@@ -9,6 +9,7 @@
 #include <fstream>
 #include <slang.h>
 #include <exception>
+#include <iostream>
 
 namespace Yume {
     Shader::Shader(const std::string& id, const std::string& importName, const vk::ShaderStageFlagBits shaderStage, vk::raii::Device& device)
@@ -21,15 +22,17 @@ namespace Yume {
     vk::ShaderModule Shader::GetShaderModule() const { return m_shaderModule; }
     vk::ShaderStageFlagBits Shader::GetStage() const { return m_stage; }
 
-    bool Shader::DoLoad(const std::string& filepath) {
+    bool Shader::DoLoad() {
         std::vector<char> shaderCode;
-        if (!ServiceLocator::GetService<FileUtils>().ReadFile(filepath, shaderCode)) {
+        if (!ServiceLocator::GetService<HotReloadResourceManager>().ReadFile<Shader>(Resource::GetId(), shaderCode)) {
             return false;
         }
         
         ShaderBlob* shaderBytecode = nullptr;
 
-        auto result = ServiceLocator::GetService<ShaderCompiler>().Compile(std::string(shaderCode.begin(), shaderCode.end()), {{"vertMain", SLANG_STAGE_VERTEX}, {"fragMain", SLANG_STAGE_FRAGMENT}}, m_importName, &shaderBytecode, filepath);
+        std::cout << "Compiling shader: " << std::string(shaderCode.begin(), shaderCode.end()) << std::endl;
+
+        auto result = ServiceLocator::GetService<ShaderCompiler>().Compile(std::string(shaderCode.begin(), shaderCode.end()), {{"vertMain", SLANG_STAGE_VERTEX}, {"fragMain", SLANG_STAGE_FRAGMENT}}, m_importName, &shaderBytecode, GetId());
         if (result != SLANG_OK) {
             throw std::runtime_error("Failed to compile shader!");
             return false;

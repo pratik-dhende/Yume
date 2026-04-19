@@ -2,8 +2,7 @@
 #include "Rendering/Core/Renderer.h"
 #include "Rendering/Resources/Shader.h"
 #include "Services/ShaderCompiler.h"
-#include "Services/ResourceManager/ResourceManager.h"
-#include "Services/FileUtils.h"
+#include "Services/ResourceManager/HotReloadResourceManager.h"
 
 namespace Yume {
 
@@ -23,6 +22,7 @@ void Application::Run() {
 void Application::MainLoop() {
     while (!glfwWindowShouldClose(m_window)) {
         glfwPollEvents();
+        ServiceLocator::GetService<HotReloadResourceManager>().HotReload();
     }
 }
 
@@ -53,12 +53,10 @@ void Application::DestroyWindow() {
 
 void Application::RegisterServices() {
     auto shaderCompiler = std::make_unique<ShaderCompiler>();
-    auto resourceManager = std::make_unique<ResourceManager>();
-    auto fileUtils = std::make_unique<FileUtils>();
+    auto resourceManager = std::make_unique<HotReloadResourceManager>();
 
     ServiceLocator::RegisterService(std::move(shaderCompiler));
     ServiceLocator::RegisterService(std::move(resourceManager));
-    ServiceLocator::RegisterService(std::move(fileUtils));
 }
 
 }

@@ -37,9 +37,9 @@ ShaderCompiler::ShaderCompiler()  {
     m_globalSession->createSession(sessionDesc, m_session.writeRef());
 }
 
-SlangResult ShaderCompiler::Compile(const std::string& code, const std::vector<std::pair<std::string, SlangStage>>& entryPoints, const std::string& importName, ShaderBlob** outSpirvCode, const std::string& shaderPath) {
+SlangResult ShaderCompiler::Compile(const std::string& code, const std::vector<std::pair<std::string, SlangStage>>& entryPoints, const std::string& importName, ShaderBlob** outSpirvCode, const std::string& resourceId) {
     Slang::ComPtr<slang::IModule> slangModule;
-    SLANG_RETURN_ON_FAIL(loadModule(code, importName, shaderPath, slangModule));
+    SLANG_RETURN_ON_FAIL(loadModule(code, importName, resourceId, slangModule));
 
     std::vector<slang::IEntryPoint*> slangEntryPoints;
     SLANG_RETURN_ON_FAIL(loadEntryPoints(entryPoints, slangEntryPoints, slangModule));
@@ -60,11 +60,11 @@ SlangResult ShaderCompiler::Compile(const std::string& code, const std::vector<s
     return SLANG_OK;
 }
 
-SlangResult ShaderCompiler::loadModule(const std::string& code, const std::string& importName, const std::string& shaderPath, Slang::ComPtr<slang::IModule>& outModule) {
+SlangResult ShaderCompiler::loadModule(const std::string& code, const std::string& importName, const std::string& resourceId, Slang::ComPtr<slang::IModule>& outModule) {
     Slang::ComPtr<slang::IBlob> diagnosticsBlob;
 
     const char* moduleName = importName.c_str();
-    const char* modulePath = shaderPath.c_str();
+    const char* modulePath = resourceId.c_str();
 
     outModule = m_session->loadModuleFromSourceString(moduleName, modulePath, code.c_str(), diagnosticsBlob.writeRef());
     diagnoseIfNeeded(diagnosticsBlob);

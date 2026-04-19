@@ -17,7 +17,7 @@ public:
     vk::ShaderStageFlagBits GetStage() const;
 
 protected:
-    bool DoLoad(const std::string& filepath) override;
+    bool DoLoad() override;
     bool DoUnload() override;
 
 private:
