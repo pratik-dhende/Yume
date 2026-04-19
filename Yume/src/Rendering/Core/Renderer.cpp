@@ -4,6 +4,8 @@
 
 #include "Renderer.h"
 #include "Rendering/Resources/Shader.h"
+#include "Services/ResourceManager/ResourceManager.h"
+#include "Services/ResourceManager/ResourceHandle.h"
 
 namespace Yume {
 
@@ -78,8 +80,7 @@ void Renderer::InitVulkan() {
 }
 
 void Renderer::CreateGraphicsPipeline() {
-    Shader shader("shader", vk::ShaderStageFlagBits::eVertex, m_logicalDevice);
-    shader.Load();
+    auto vertexShaderHandle = ServiceLocator::GetService<ResourceManager>().Load<Shader>("shader.slang", "shader", vk::ShaderStageFlagBits::eVertex, m_logicalDevice);
 }
 
 void Renderer::CreateSurface() {

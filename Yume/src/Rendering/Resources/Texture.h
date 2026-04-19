@@ -20,7 +20,7 @@ public:
     vk::Sampler GetSampler() const { return m_sampler; }
 
 protected:
-     bool DoLoad() override {
+     bool DoLoad(const std::string& filepath) override {
         std::string filePath = "textures/" + GetId() + ".ktx";
 
         unsigned char* data = LoadImageData(filePath, &m_width, &m_height, &m_channels);

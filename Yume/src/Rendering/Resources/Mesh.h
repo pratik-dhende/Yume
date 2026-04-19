@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ResourceManagement/Resource.h"
+#include "Services/ResourceManager/Resource.h"
 
 #include <string>
 #include <vector>
@@ -30,7 +30,7 @@ public:
 	void Render();
 
 protected:
-	bool DoLoad() override {
+	bool DoLoad(const std::string& filepath) override {
         std::string filePath = "models/" + GetId() + ".gltf";
 
         std::vector<Vertex> vertices;      

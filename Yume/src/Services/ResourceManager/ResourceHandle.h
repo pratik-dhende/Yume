@@ -1,8 +1,7 @@
 #pragma once
 
-#include "ResourceManager.h"
-
 #include <string>
+#include "ResourceManager.h"
 
 namespace Yume {
 
@@ -43,33 +42,6 @@ public:
 private:
     std::string m_resourceId;
     ResourceManager* m_resourceManager;
-};
-
-class Resource {
-public:
-    explicit Resource(const std::string& id) : m_resourceId(id) {}
-    virtual ~Resource() = default;
-
-    const std::string& GetId() const { return m_resourceId; }
-    bool IsLoaded() const { return m_loaded; }
-
-    virtual bool Load() {
-        m_loaded = DoLoad();
-        return m_loaded;
-    }
-
-    virtual bool Unload() {
-        m_loaded = !DoUnload();
-        return !m_loaded;
-    }
-
-protected:
-    virtual bool DoLoad() = 0;
-    virtual bool DoUnload() = 0;
-
-private:
-    std::string m_resourceId;
-    bool m_loaded = false;
 };
 
 }

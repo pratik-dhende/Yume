@@ -40,3 +40,5 @@ target_compile_definitions(Yume
         VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
         GLFW_INCLUDE_VULKAN
 )
+
+set_target_properties(Yume PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/${PROJECT_NAME})

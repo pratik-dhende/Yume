@@ -37,6 +37,7 @@ private:
     void InitRenderer();
     void DestroyWindow();
     void MainLoop();
+    void RegisterServices();
 
 };
 

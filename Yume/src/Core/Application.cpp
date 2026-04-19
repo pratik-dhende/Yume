@@ -1,9 +1,15 @@
 #include "Application.h"
 #include "Rendering/Core/Renderer.h"
+#include "Rendering/Resources/Shader.h"
+#include "Services/ShaderCompiler.h"
+#include "Services/ResourceManager/ResourceManager.h"
+#include "Services/FileUtils.h"
 
 namespace Yume {
 
 void Application::Run() {
+    RegisterServices();
+
     InitWindow();
     InitRenderer();
 
@@ -43,6 +49,16 @@ void Application::InitRenderer() {
 void Application::DestroyWindow() {
     glfwDestroyWindow(m_window);
     glfwTerminate();
+}
+
+void Application::RegisterServices() {
+    auto shaderCompiler = std::make_unique<ShaderCompiler>();
+    auto resourceManager = std::make_unique<ResourceManager>();
+    auto fileUtils = std::make_unique<FileUtils>();
+
+    ServiceLocator::RegisterService(std::move(shaderCompiler));
+    ServiceLocator::RegisterService(std::move(resourceManager));
+    ServiceLocator::RegisterService(std::move(fileUtils));
 }
 
 }
