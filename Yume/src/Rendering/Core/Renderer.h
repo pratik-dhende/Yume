@@ -9,6 +9,7 @@ import vulkan_hpp;
 
 #include "RenderPassManager.h"
 #include "Scene/CullingSystem.h"
+#include "Services/ShaderCompiler.h"
 
 namespace Yume {
 
@@ -51,6 +52,8 @@ private:
     vk::Extent2D ChooseSwapExtent(vk::SurfaceCapabilitiesKHR const &capabilities);
     uint32_t ChooseSwapMinImageCount(vk::SurfaceCapabilitiesKHR const &surfaceCapabilities);
 
+    vk::raii::ShaderModule CreateShaderModule(ShaderBlob* bytecode);
+
     void SetupRenderPasses() {
         // Create geometry pass
 
@@ -91,6 +94,9 @@ private:
     std::vector<vk::raii::ImageView> m_swapChainImageViews;
     vk::SurfaceFormatKHR m_swapChainSurfaceFormat;
     vk::Extent2D m_swapChainExtent;
+
+    vk::raii::PipelineLayout m_pipelineLayout = nullptr;
+    vk::raii::Pipeline m_graphicsPipeline = nullptr;
 
     vk::PhysicalDeviceFeatures m_deviceFeatures;
 

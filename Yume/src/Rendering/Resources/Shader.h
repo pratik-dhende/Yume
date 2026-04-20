@@ -10,26 +10,17 @@ namespace Yume {
 
 class Shader : public Resource {
 public:
-    Shader(const std::string& id, const std::string& importName, const vk::ShaderStageFlagBits stage, const std::string& entryPoint, vk::raii::Device& device);
+    Shader(const std::string& id);
     ~Shader();
 
-    vk::ShaderModule GetShaderModule() const;
-    vk::ShaderStageFlagBits GetStage() const;
+    ShaderBlob* GetShaderBytecode();
 
 protected:
     bool DoLoad() override;
     bool DoUnload() override;
 
 private:
-    void CreateShaderModule(ShaderBlob* bytecode);
-
-private:
-    vk::raii::ShaderModule m_shaderModule = nullptr;
-    vk::ShaderStageFlagBits m_stage;
-    vk::raii::Device& m_device;
-
-    std::string m_importName;
-    std::string m_entryPoint;
+    ShaderBlob* m_bytecode;
 };
 
 }

@@ -80,7 +80,68 @@ void Renderer::InitVulkan() {
 }
 
 void Renderer::CreateGraphicsPipeline() {
-    auto vertexShaderHandle = ServiceLocator::GetService<HotReloadResourceManager>().Load<Shader>("shader.slang", "shader", vk::ShaderStageFlagBits::eVertex, "vertMain", m_logicalDevice);
+    // Programmable Stages
+    constexpr const char* vertexShaderEntryPoint = "vertMain";
+    constexpr const char* fragmentShaderEntryPoint = "fragMain";
+
+    auto shaderHandle = ServiceLocator::GetService<HotReloadResourceManager>().Load<Shader>("shader.slang");
+    auto shaderModule = CreateShaderModule(shaderHandle->GetShaderBytecode());
+
+    vk::PipelineShaderStageCreateInfo vertShaderStageInfo{ .stage = vk::ShaderStageFlagBits::eVertex, .module = shaderModule,  .pName = vertexShaderEntryPoint };
+    vk::PipelineShaderStageCreateInfo fragShaderStageInfo{ .stage = vk::ShaderStageFlagBits::eFragment, .module = shaderModule, .pName = fragmentShaderEntryPoint };
+
+    vk::PipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
+
+    // Fixed functions
+    vk::PipelineVertexInputStateCreateInfo vertexInputInfo;
+    vk::PipelineInputAssemblyStateCreateInfo inputAssembly{.topology = vk::PrimitiveTopology::eTriangleList};
+    vk::PipelineViewportStateCreateInfo viewportState{.viewportCount = 1, .scissorCount = 1};
+
+    vk::PipelineRasterizationStateCreateInfo rasterizer{.depthClampEnable        = vk::False,
+                                                        .rasterizerDiscardEnable = vk::False,
+                                                        .polygonMode             = vk::PolygonMode::eFill,
+                                                        .cullMode                = vk::CullModeFlagBits::eBack,
+                                                        .frontFace               = vk::FrontFace::eClockwise,
+                                                        .depthBiasEnable         = vk::False,
+                                                        .lineWidth               = 1.0f};
+
+    vk::PipelineMultisampleStateCreateInfo multisampling{.rasterizationSamples = vk::SampleCountFlagBits::e1, .sampleShadingEnable = vk::False};
+
+    vk::PipelineColorBlendAttachmentState colorBlendAttachment{ .blendEnable = vk::False,
+                                                                .colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA};
+
+    vk::PipelineColorBlendStateCreateInfo colorBlending{.logicOpEnable = vk::False, .logicOp = vk::LogicOp::eCopy, .attachmentCount = 1, .pAttachments = &colorBlendAttachment};
+
+    std::vector<vk::DynamicState> dynamicStates = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
+    vk::PipelineDynamicStateCreateInfo dynamicState{.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()), .pDynamicStates = dynamicStates.data()};
+
+    vk::PipelineLayoutCreateInfo pipelineLayoutInfo{.setLayoutCount = 0, .pushConstantRangeCount = 0};
+    m_pipelineLayout = vk::raii::PipelineLayout(m_logicalDevice, pipelineLayoutInfo);
+
+    vk::PipelineRenderingCreateInfo pipelineRenderingCreateInfo{ .colorAttachmentCount = 1, .pColorAttachmentFormats = &m_swapChainSurfaceFormat.format };
+
+    vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo> pipelineCreateInfoChain = {
+    {.stageCount          = 2,
+        .pStages             = shaderStages,
+        .pVertexInputState   = &vertexInputInfo,
+        .pInputAssemblyState = &inputAssembly,
+        .pViewportState      = &viewportState,
+        .pRasterizationState = &rasterizer,
+        .pMultisampleState   = &multisampling,
+        .pColorBlendState    = &colorBlending,
+        .pDynamicState       = &dynamicState,
+        .layout              = m_pipelineLayout,
+        .renderPass          = nullptr},
+        pipelineRenderingCreateInfo};
+
+    m_graphicsPipeline = vk::raii::Pipeline(m_logicalDevice, nullptr, pipelineCreateInfoChain.get<vk::GraphicsPipelineCreateInfo>());   
+}
+
+vk::raii::ShaderModule Renderer::CreateShaderModule(ShaderBlob* bytecode) {
+    vk::ShaderModuleCreateInfo createInfo{};
+    createInfo.codeSize = bytecode->getBufferSize();
+    createInfo.pCode = reinterpret_cast<const uint32_t*>(bytecode->getBufferPointer());
+    return m_logicalDevice.createShaderModule(createInfo);
 }
 
 void Renderer::CreateSurface() {
