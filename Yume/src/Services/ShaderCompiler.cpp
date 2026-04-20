@@ -37,12 +37,12 @@ ShaderCompiler::ShaderCompiler()  {
     m_globalSession->createSession(sessionDesc, m_session.writeRef());
 }
 
-SlangResult ShaderCompiler::Compile(const std::string& code, const std::vector<std::pair<std::string, SlangStage>>& entryPoints, const std::string& importName, ShaderBlob** outSpirvCode, const std::string& resourceId) {
+SlangResult ShaderCompiler::Compile(const std::string& code, const vk::ShaderStageFlagBits& shaderStage,  const std::string& entryPoint, const std::string& importName, ShaderBlob** outSpirvCode, const std::string& resourceId) {
     Slang::ComPtr<slang::IModule> slangModule;
     SLANG_RETURN_ON_FAIL(loadModule(code, importName, resourceId, slangModule));
 
     std::vector<slang::IEntryPoint*> slangEntryPoints;
-    SLANG_RETURN_ON_FAIL(loadEntryPoints(entryPoints, slangEntryPoints, slangModule));
+    SLANG_RETURN_ON_FAIL(loadEntryPoints(shaderStage, entryPoint, slangModule, slangEntryPoints));
 
     std::vector<slang::IComponentType*> componentTypes(1, slangModule.get());
     componentTypes.insert(componentTypes.end(), slangEntryPoints.begin(), slangEntryPoints.end());
@@ -76,7 +76,10 @@ SlangResult ShaderCompiler::loadModule(const std::string& code, const std::strin
     return SLANG_OK;
 }
 
-SlangResult ShaderCompiler::loadEntryPoints(const std::vector<std::pair<std::string, SlangStage>>& entryPoints, std::vector<slang::IEntryPoint*>& outEntryPoints, const Slang::ComPtr<slang::IModule>& slangModule) {
+SlangResult ShaderCompiler::loadEntryPoints(const vk::ShaderStageFlagBits& shaderStage, const std::string& entryPoint, const Slang::ComPtr<slang::IModule>& slangModule, std::vector<slang::IEntryPoint*>& outEntryPoints) {
+    std::vector<std::pair<std::string, SlangStage>> entryPoints;
+    entryPoints.emplace_back(entryPoint, s_stageName.at(shaderStage));
+
     for (const auto& [entryPoint, stage] : entryPoints)
     {   
         Slang::ComPtr<slang::IEntryPoint> slangEntryPoint;

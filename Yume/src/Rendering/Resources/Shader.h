@@ -10,7 +10,7 @@ namespace Yume {
 
 class Shader : public Resource {
 public:
-    Shader(const std::string& id, const std::string& importName, const vk::ShaderStageFlagBits shaderStage, vk::raii::Device& device);
+    Shader(const std::string& id, const std::string& importName, const vk::ShaderStageFlagBits stage, const std::string& entryPoint, vk::raii::Device& device);
     ~Shader();
 
     vk::ShaderModule GetShaderModule() const;
@@ -29,6 +29,7 @@ private:
     vk::raii::Device& m_device;
 
     std::string m_importName;
+    std::string m_entryPoint;
 };
 
 }

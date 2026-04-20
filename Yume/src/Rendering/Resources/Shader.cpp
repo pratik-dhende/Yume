@@ -12,8 +12,8 @@
 #include <iostream>
 
 namespace Yume {
-    Shader::Shader(const std::string& id, const std::string& importName, const vk::ShaderStageFlagBits shaderStage, vk::raii::Device& device)
-        : Resource(id), m_importName(importName), m_stage(shaderStage), m_device(device) {}
+    Shader::Shader(const std::string& id, const std::string& importName, const vk::ShaderStageFlagBits stage, const std::string& entryPoint, vk::raii::Device& device)
+        : Resource(id), m_importName(importName), m_stage(stage), m_device(device), m_entryPoint(entryPoint) {}
 
     Shader::~Shader() {
         Resource::Unload();
@@ -32,7 +32,7 @@ namespace Yume {
 
         std::cout << "Compiling shader: " << std::string(shaderCode.begin(), shaderCode.end()) << std::endl;
 
-        auto result = ServiceLocator::GetService<ShaderCompiler>().Compile(std::string(shaderCode.begin(), shaderCode.end()), {{"vertMain", SLANG_STAGE_VERTEX}, {"fragMain", SLANG_STAGE_FRAGMENT}}, m_importName, &shaderBytecode, GetId());
+        auto result = ServiceLocator::GetService<ShaderCompiler>().Compile(std::string(shaderCode.begin(), shaderCode.end()), m_stage, m_entryPoint, m_importName, &shaderBytecode, GetId());
         if (result != SLANG_OK) {
             throw std::runtime_error("Failed to compile shader!");
             return false;

@@ -80,7 +80,7 @@ void Renderer::InitVulkan() {
 }
 
 void Renderer::CreateGraphicsPipeline() {
-    auto vertexShaderHandle = ServiceLocator::GetService<HotReloadResourceManager>().Load<Shader>("shader.slang", "shader", vk::ShaderStageFlagBits::eVertex, m_logicalDevice);
+    auto vertexShaderHandle = ServiceLocator::GetService<HotReloadResourceManager>().Load<Shader>("shader.slang", "shader", vk::ShaderStageFlagBits::eVertex, "vertMain", m_logicalDevice);
 }
 
 void Renderer::CreateSurface() {
