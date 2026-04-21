@@ -8,6 +8,7 @@
 ## Features
 This branch is the complete revamp of the DirectX 12 (main branch) with following features currently suppported:
 - Vulkan framework
+- Frames In Flight
 - Resource Manager
 - Service Locator
 - CMake Meta Build System
