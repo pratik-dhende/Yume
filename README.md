@@ -1,12 +1,12 @@
 # Yume
 ## Vulkan Graphics Engine
+
 <div align="center">
   <img width="796" height="618" alt="Screenshot 2026-04-20 193049" src="https://github.com/user-attachments/assets/0c167da1-38f9-4c42-9bad-15aca7f2efd3" />
   <em>Figure 1: Vulkan Triangle Render </em>
 </div>
 
 ## Features
-This branch is the complete revamp of the DirectX 12 (main branch) with following features currently suppported:
 - Vulkan framework
 - Frames In Flight
 - Resource Manager
