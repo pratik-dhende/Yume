@@ -5,7 +5,7 @@
 
 #include "Renderer.h"
 #include "Rendering/Resources/Shader.h"
-#include "Services/ResourceManager/HotReloadResourceManager.h"
+#include "Services/ResourceManager/ResourceManager.h"
 #include "Services/ResourceManager/ResourceHandle.h"
 
 namespace Yume {
@@ -287,7 +287,7 @@ void Renderer::CreateGraphicsPipeline() {
     constexpr const char* vertexShaderEntryPoint = "vertMain";
     constexpr const char* fragmentShaderEntryPoint = "fragMain";
 
-    auto shaderHandle = ServiceLocator::GetService<HotReloadResourceManager>().Load<Shader>("shader.slang");
+    auto shaderHandle = ServiceLocator::GetService<ResourceManager>().Load<Shader>("shader.slang");
     auto shaderModule = CreateShaderModule(shaderHandle->GetShaderBytecode());
 
     vk::PipelineShaderStageCreateInfo vertShaderStageInfo{ .stage = vk::ShaderStageFlagBits::eVertex, .module = shaderModule,  .pName = vertexShaderEntryPoint };

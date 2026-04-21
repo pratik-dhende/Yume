@@ -1,7 +1,7 @@
 #include "Shader.h"
 #include "Services/ShaderCompiler.h"
 #include "Services/ResourceManager/Resource.h"
-#include "Services/ResourceManager/HotReloadResourceManager.h"
+#include "Services/ResourceManager/ResourceManager.h"
 
 #include <string>
 #include <vulkan/vulkan.hpp>
@@ -24,7 +24,7 @@ namespace Yume {
 
     bool Shader::DoLoad() {
         std::vector<char> shaderCode;
-        if (!ServiceLocator::GetService<HotReloadResourceManager>().ReadFile<Shader>(Resource::GetId(), shaderCode)) {
+        if (!ServiceLocator::GetService<ResourceManager>().ReadFile<Shader>(Resource::GetId(), shaderCode)) {
             return false;
         }
 
