@@ -32,7 +32,7 @@ The engine currently supports following features:
 
 <td width="50%" valign="top">
 
-<h3 align="center">DirectX 12 Interactive Box Demo</h3>
+<h3 align="center">DirectX 12 Box Demo</h3>
 <hr style="margin-top:6px; margin-bottom:10px;"/>
 
 [!Demo](https://github.com/user-attachments/assets/8a6f547d-bea5-416e-9d1d-11be9aa889e9)
