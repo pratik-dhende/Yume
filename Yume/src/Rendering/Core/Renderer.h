@@ -11,6 +11,8 @@ import vulkan_hpp;
 #include "Scene/CullingSystem.h"
 #include "Services/ShaderCompiler.h"
 
+#include <vector>
+
 namespace Yume {
 
 class Renderer {
@@ -35,6 +37,7 @@ public:
 private:
     static const std::vector<char const*> s_validationLayers;
     static const std::vector<const char*> s_requiredDeviceExtensions;
+    static constexpr int s_maxFramesInFlight = 2;
     static VKAPI_ATTR vk::Bool32 VKAPI_CALL DebugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT severity, vk::DebugUtilsMessageTypeFlagsEXT type, const vk::DebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
 
 private:
@@ -51,7 +54,7 @@ private:
     void CreateImageViews();
     void CreateGraphicsPipeline();
     void CreateCommandPool();
-    void CreateCommandBuffer();
+    void CreateCommandBuffers();
     void TransitionImageLayout(
 	    uint32_t                imageIndex,
 	    vk::ImageLayout         old_layout,
@@ -104,13 +107,15 @@ private:
     vk::raii::Pipeline m_graphicsPipeline = nullptr;
 
     vk::raii::CommandPool m_commandPool = nullptr;
-    vk::raii::CommandBuffer m_commandBuffer = nullptr;
+    std::vector<vk::raii::CommandBuffer> m_commandBuffers;
 
-    vk::raii::Semaphore m_presentCompleteSemaphore = nullptr;
-    vk::raii::Fence     m_drawFence                = nullptr;
-    vk::raii::Semaphore m_renderFinishedSemaphore  = nullptr;
+    std::vector<vk::raii::Semaphore> m_presentCompleteSemaphores;
+    std::vector<vk::raii::Fence> m_inFlightFences;
+    std::vector<vk::raii::Semaphore> m_renderFinishedSemaphores;
 
     bool m_enableValidationLayers = false;
+
+    uint32_t m_frameIndex = 0;
 
     // Unused
     vk::raii::Device m_device = nullptr;
