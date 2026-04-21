@@ -28,6 +28,10 @@ public:
 
     void Render(const std::vector<Entity*>& entities);
 
+    void DrawFrame();
+
+    void ShutDown();
+
 private:
     static const std::vector<char const*> s_validationLayers;
     static const std::vector<const char*> s_requiredDeviceExtensions;
@@ -46,6 +50,18 @@ private:
     void CreateSwapChain();
     void CreateImageViews();
     void CreateGraphicsPipeline();
+    void CreateCommandPool();
+    void CreateCommandBuffer();
+    void TransitionImageLayout(
+	    uint32_t                imageIndex,
+	    vk::ImageLayout         old_layout,
+	    vk::ImageLayout         new_layout,
+	    vk::AccessFlags2        src_access_mask,
+	    vk::AccessFlags2        dst_access_mask,
+	    vk::PipelineStageFlags2 src_stage_mask,
+	    vk::PipelineStageFlags2 dst_stage_mask);
+    void RecordCommandBuffer(const uint32_t imageIndex);
+    void CreateSyncObjects();
 
     vk::SurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
     vk::PresentModeKHR ChooseSwapPresentMode(std::vector<vk::PresentModeKHR> const &availablePresentModes);
@@ -66,30 +82,19 @@ private:
     }
 
 private:
+    GLFWwindow* m_window = nullptr;
+
     vk::raii::Context m_context;
     vk::raii::Instance m_instance = nullptr;
     vk::raii::DebugUtilsMessengerEXT m_debugMessenger = nullptr;
 
-    vk::raii::Device m_device = nullptr;
-    vk::Queue m_tmpGraphicsQueue;
-    vk::raii::CommandPool m_commandPool = nullptr;
-
-    RenderPassManager m_renderPassManager;
-    CullingSystem m_cullingSystem;
-
-    // Current frame resources
-    vk::raii::CommandBuffer m_commandBuffer = nullptr;
-    vk::raii::Fence m_fence = nullptr;
-    vk::raii::Semaphore m_imageAvailableSemaphore = nullptr;
-    vk::raii::Semaphore m_renderFinishedSemaphore = nullptr;
-
+    vk::raii::SurfaceKHR m_surface = nullptr;
     vk::raii::PhysicalDevice m_physicalDevice = nullptr;
     vk::raii::Device m_logicalDevice = nullptr;
     vk::raii::Queue m_graphicsQueue = nullptr;
+    vk::PhysicalDeviceFeatures m_deviceFeatures;
 
-    vk::raii::SurfaceKHR m_surface = nullptr;
     vk::raii::SwapchainKHR m_swapChain = nullptr;
-    
     std::vector<vk::Image> m_swapChainImages;
     std::vector<vk::raii::ImageView> m_swapChainImageViews;
     vk::SurfaceFormatKHR m_swapChainSurfaceFormat;
@@ -98,10 +103,23 @@ private:
     vk::raii::PipelineLayout m_pipelineLayout = nullptr;
     vk::raii::Pipeline m_graphicsPipeline = nullptr;
 
-    vk::PhysicalDeviceFeatures m_deviceFeatures;
+    vk::raii::CommandPool m_commandPool = nullptr;
+    vk::raii::CommandBuffer m_commandBuffer = nullptr;
+
+    vk::raii::Semaphore m_presentCompleteSemaphore = nullptr;
+    vk::raii::Fence     m_drawFence                = nullptr;
+    vk::raii::Semaphore m_renderFinishedSemaphore  = nullptr;
 
     bool m_enableValidationLayers = false;
 
-    GLFWwindow* m_window = nullptr;
+    // Unused
+    vk::raii::Device m_device = nullptr;
+    vk::Queue m_tmpGraphicsQueue;
+
+    RenderPassManager m_renderPassManager;
+    CullingSystem m_cullingSystem;
+
+    vk::raii::Fence m_fence = nullptr;
+    vk::raii::Semaphore m_imageAvailableSemaphore = nullptr;
 };
 }

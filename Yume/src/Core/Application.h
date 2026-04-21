@@ -35,6 +35,7 @@ private:
 private:
     void InitWindow();
     void InitRenderer();
+    void DestroyRenderer();
     void DestroyWindow();
     void MainLoop();
     void RegisterServices();

@@ -16,6 +16,7 @@ void Application::Run() {
     MainLoop();
     Shutdown();
 
+    DestroyRenderer();
     DestroyWindow();
 }
 
@@ -23,6 +24,7 @@ void Application::MainLoop() {
     while (!glfwWindowShouldClose(m_window)) {
         glfwPollEvents();
         ServiceLocator::GetService<HotReloadResourceManager>().HotReload();
+        m_renderer->DrawFrame();
     }
 }
 
@@ -44,6 +46,11 @@ void Application::InitRenderer() {
 
     m_renderer = std::make_unique<Renderer>(enableValidationLayers, m_window);
     m_renderer->Init();
+}
+
+void Application::DestroyRenderer() {
+    m_renderer->ShutDown();
+    m_renderer = nullptr;
 }
 
 void Application::DestroyWindow() {

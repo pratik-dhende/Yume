@@ -13,10 +13,40 @@ const std::vector<char const*> Renderer::s_validationLayers = {
     "VK_LAYER_KHRONOS_validation"
 };
 
-const std::vector<const char*> Renderer::s_requiredDeviceExtensions = { vk::KHRSwapchainExtensionName, vk::KHRShaderDrawParametersExtensionName };
+const std::vector<const char*> Renderer::s_requiredDeviceExtensions = { vk::KHRSwapchainExtensionName, vk::KHRShaderDrawParametersExtensionName, vk::KHRSynchronization2ExtensionName };
 
 Renderer::Renderer(const bool enableValidationLayer, GLFWwindow* window) : m_enableValidationLayers(enableValidationLayer), m_window(window) {
     SetupRenderPasses();
+}
+
+void Renderer::ShutDown() {
+    m_logicalDevice.waitIdle();
+
+    m_presentCompleteSemaphore = nullptr;
+    m_drawFence                = nullptr;
+    m_renderFinishedSemaphore  = nullptr;
+
+    m_commandBuffer = nullptr;
+    m_commandPool = nullptr;
+
+    m_graphicsPipeline = nullptr;
+    m_pipelineLayout = nullptr;
+
+    m_swapChainImages.clear();
+    m_swapChainImageViews.clear();
+
+    m_swapChainImageViews.clear();
+    m_swapChain = nullptr;
+
+    m_graphicsQueue = nullptr;
+    m_logicalDevice = nullptr;
+    m_physicalDevice = nullptr;
+
+    m_surface = nullptr;
+    m_debugMessenger = nullptr;
+    m_instance = nullptr;
+
+    m_window = nullptr;
 }
 
 void Renderer::Render(const std::vector<Entity*>& entities) {
@@ -76,7 +106,156 @@ void Renderer::InitVulkan() {
     SelectPhysicalDevice();
     CreateLogicalDevice();
     CreateSwapChain();
+    CreateImageViews();
     CreateGraphicsPipeline();
+    CreateCommandPool();
+    CreateCommandBuffer();
+    CreateSyncObjects();
+}
+
+void Renderer::TransitionImageLayout(
+	    uint32_t                imageIndex,
+	    vk::ImageLayout         old_layout,
+	    vk::ImageLayout         new_layout,
+	    vk::AccessFlags2        src_access_mask,
+	    vk::AccessFlags2        dst_access_mask,
+	    vk::PipelineStageFlags2 src_stage_mask,
+	    vk::PipelineStageFlags2 dst_stage_mask)
+{
+		vk::ImageMemoryBarrier2 barrier = {
+		    .srcStageMask        = src_stage_mask,
+		    .srcAccessMask       = src_access_mask,
+		    .dstStageMask        = dst_stage_mask,
+		    .dstAccessMask       = dst_access_mask,
+		    .oldLayout           = old_layout,
+		    .newLayout           = new_layout,
+		    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+		    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+		    .image               = m_swapChainImages[imageIndex],
+		    .subresourceRange    = {
+		           .aspectMask     = vk::ImageAspectFlagBits::eColor,
+		           .baseMipLevel   = 0,
+		           .levelCount     = 1,
+		           .baseArrayLayer = 0,
+		           .layerCount     = 1}};
+		vk::DependencyInfo dependencyInfo = {
+		    .dependencyFlags         = {},
+		    .imageMemoryBarrierCount = 1,
+		    .pImageMemoryBarriers    = &barrier};
+    m_commandBuffer.pipelineBarrier2(dependencyInfo);
+}
+
+void Renderer::CreateSyncObjects() {
+    m_presentCompleteSemaphore = vk::raii::Semaphore(m_logicalDevice, vk::SemaphoreCreateInfo());
+    m_renderFinishedSemaphore  = vk::raii::Semaphore(m_logicalDevice, vk::SemaphoreCreateInfo());
+    m_drawFence                = vk::raii::Fence(m_logicalDevice, {.flags = vk::FenceCreateFlagBits::eSignaled});
+}
+
+void Renderer::DrawFrame() {
+    auto fenceResult = m_logicalDevice.waitForFences(*m_drawFence, vk::True, UINT64_MAX);
+    if (fenceResult != vk::Result::eSuccess)
+    {
+        throw std::runtime_error("failed to wait for fence!");
+    }
+    m_logicalDevice.resetFences(*m_drawFence);
+
+    auto [result, imageIndex] = m_swapChain.acquireNextImage(UINT64_MAX, *m_presentCompleteSemaphore, nullptr); // Signal to queue to start 
+
+    RecordCommandBuffer(imageIndex);
+
+    m_graphicsQueue.waitIdle();
+
+    vk::PipelineStageFlags waitDestinationStageMask( vk::PipelineStageFlagBits::eColorAttachmentOutput );
+    const vk::SubmitInfo submitInfo{.waitSemaphoreCount   = 1,
+                                  .pWaitSemaphores      = &*m_presentCompleteSemaphore, // Wait for presentation engine to get the framebuffer
+                                  .pWaitDstStageMask    = &waitDestinationStageMask,
+                                  .commandBufferCount   = 1,
+                                  .pCommandBuffers      = &*m_commandBuffer,
+                                  .signalSemaphoreCount = 1,
+                                  .pSignalSemaphores    = &*m_renderFinishedSemaphore}; // Signal presentation engine for rendering completion
+
+    m_graphicsQueue.submit(submitInfo, *m_drawFence);
+
+    const vk::PresentInfoKHR presentInfoKHR{.waitSemaphoreCount = 1,
+                                            .pWaitSemaphores    = &*m_renderFinishedSemaphore,
+                                            .swapchainCount     = 1,
+                                            .pSwapchains        = &*m_swapChain,
+                                            .pImageIndices      = &imageIndex};
+
+    result = m_graphicsQueue.presentKHR(presentInfoKHR);
+}
+
+void Renderer::RecordCommandBuffer(const uint32_t imageIndex) {
+    m_commandBuffer.begin({});
+
+    // Transition the image layout for rendering
+    // Before starting rendering, transition the swapchain image to vk::ImageLayout::eColorAttachmentOptimal
+    TransitionImageLayout(
+        imageIndex,
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eColorAttachmentOptimal,
+        {},                                                        // srcAccessMask (no need to wait for previous operations)
+        vk::AccessFlagBits2::eColorAttachmentWrite,                // dstAccessMask
+        vk::PipelineStageFlagBits2::eColorAttachmentOutput,        // srcStage
+        vk::PipelineStageFlagBits2::eColorAttachmentOutput         // dstStage
+    );
+
+    // Set up the color attachment
+    vk::ClearValue clearColor = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f);
+    vk::RenderingAttachmentInfo attachmentInfo = {
+		    .imageView   = m_swapChainImageViews[imageIndex],
+		    .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
+		    .loadOp      = vk::AttachmentLoadOp::eClear,
+		    .storeOp     = vk::AttachmentStoreOp::eStore,
+		    .clearValue  = clearColor};
+
+    // Set up the rendering info
+    vk::RenderingInfo renderingInfo = {
+		    .renderArea           = {.offset = {0, 0}, .extent = m_swapChainExtent},
+		    .layerCount           = 1,
+		    .colorAttachmentCount = 1,
+		    .pColorAttachments    = &attachmentInfo};
+
+    // Begin rendering
+    m_commandBuffer.beginRendering(renderingInfo);
+
+    // Rendering commands will go here
+    m_commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_graphicsPipeline);
+
+    m_commandBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(m_swapChainExtent.width), static_cast<float>(m_swapChainExtent.height), 0.0f, 1.0f));
+    m_commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), m_swapChainExtent));
+
+    m_commandBuffer.draw(3, 1, 0, 0);
+
+    // End rendering
+    m_commandBuffer.endRendering();
+
+    // Transition the image layout for presentation
+    TransitionImageLayout(
+        imageIndex,
+        vk::ImageLayout::eColorAttachmentOptimal,
+        vk::ImageLayout::ePresentSrcKHR,
+        vk::AccessFlagBits2::eColorAttachmentWrite,
+        {},
+        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+        vk::PipelineStageFlagBits2::eBottomOfPipe
+    );
+
+    m_commandBuffer.end();
+
+}
+
+void Renderer::CreateCommandBuffer() {
+    vk::CommandBufferAllocateInfo allocInfo{ .commandPool = m_commandPool, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1 };
+
+    m_commandBuffer = std::move(vk::raii::CommandBuffers(m_logicalDevice, allocInfo).front());
+}
+
+void Renderer::CreateCommandPool() {
+    vk::CommandPoolCreateInfo poolInfo{.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
+                                       .queueFamilyIndex = 0};
+
+    m_commandPool = vk::raii::CommandPool(m_logicalDevice, poolInfo);
 }
 
 void Renderer::CreateGraphicsPipeline() {
@@ -262,10 +441,15 @@ void Renderer::CreateLogicalDevice() {
     vk::DeviceQueueCreateInfo deviceQueueCreateInfo { .queueFamilyIndex = queueIndex, .queueCount = 1, .pQueuePriorities = &queuePriority };
 
     // Create a chain of feature structures
-    vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT> featureChain = {
-        {},                               // vk::PhysicalDeviceFeatures2 (empty for now)
-        {.dynamicRendering = true },      // Enable dynamic rendering from Vulkan 1.3
-        {.extendedDynamicState = true }   // Enable extended dynamic state from the extension
+    vk::StructureChain<vk::PhysicalDeviceFeatures2, 
+                       vk::PhysicalDeviceVulkan11Features,
+                       vk::PhysicalDeviceVulkan13Features, 
+                       vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT> 
+    featureChain = {
+        {},                                                          // vk::PhysicalDeviceFeatures2
+        {.shaderDrawParameters = true},                              // vk::PhysicalDeviceVulkan11Features
+        {.synchronization2 = true, .dynamicRendering = true},        // vk::PhysicalDeviceVulkan13Features
+        {.extendedDynamicState = true}                               // vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
     };
 
     auto surfaceCapabilities = m_physicalDevice.getSurfaceCapabilitiesKHR( *m_surface );
@@ -316,9 +500,14 @@ bool Renderer::IsDeviceSuitable(const vk::raii::PhysicalDevice& physicalDevice) 
     // Check if the physicalDevice supports the required features (dynamic rendering and extended dynamic state)
     auto features =
     physicalDevice
-        .template getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>();
+        .template getFeatures2<vk::PhysicalDeviceFeatures2, 
+                               vk::PhysicalDeviceVulkan11Features, 
+                               vk::PhysicalDeviceVulkan13Features, 
+                               vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>();
     bool supportsRequiredFeatures = features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering &&
-                                    features.template get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState;
+                                    features.template get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState &&
+                                    features.template get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters &&
+                                    features.template get<vk::PhysicalDeviceVulkan13Features>().synchronization2;
 
     // Return true if the physicalDevice meets all the criteria
     return supportsVulkan1_3 && supportsGraphics && supportsAllRequiredExtensions && supportsRequiredFeatures;
