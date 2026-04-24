@@ -23,6 +23,9 @@ Renderer::Renderer(const bool enableValidationLayer, GLFWwindow* window) : m_ena
 void Renderer::ShutDown() {
     m_logicalDevice.waitIdle();
 
+    m_indexBuffer = nullptr;
+    m_indexBufferMemory = nullptr;
+
     m_vertexBuffer = nullptr;
     m_vertexBufferMemory = nullptr;
 
@@ -142,8 +145,8 @@ void Renderer::CopyBuffer(vk::raii::Buffer & srcBuffer, vk::raii::Buffer & dstBu
 void Renderer::CreateVertexBuffer() {
     vk::DeviceSize bufferSize = sizeof(m_vertices[0]) * m_vertices.size();
 
-    vk::raii::Buffer stagingBuffer = nullptr;
-    vk::raii::DeviceMemory stagingBufferMemory = nullptr;
+    vk::raii::Buffer stagingBuffer({});
+    vk::raii::DeviceMemory stagingBufferMemory({});
 
     CreateBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, stagingBuffer, stagingBufferMemory);
 
@@ -154,6 +157,22 @@ void Renderer::CreateVertexBuffer() {
     CreateBuffer(bufferSize, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst, vk::MemoryPropertyFlagBits::eDeviceLocal, m_vertexBuffer, m_vertexBufferMemory);
 
     CopyBuffer(stagingBuffer, m_vertexBuffer, bufferSize);
+}
+
+void Renderer::CreateIndexBuffer() {
+    vk::DeviceSize bufferSize = sizeof(m_indices[0]) * m_indices.size();
+
+    vk::raii::Buffer stagingBuffer({});
+    vk::raii::DeviceMemory stagingBufferMemory({});
+    CreateBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, stagingBuffer, stagingBufferMemory);
+
+    void* data = stagingBufferMemory.mapMemory(0, bufferSize);
+    memcpy(data, m_indices.data(), (size_t) bufferSize);
+    stagingBufferMemory.unmapMemory();
+
+    CreateBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, m_indexBuffer, m_indexBufferMemory);
+
+    CopyBuffer(stagingBuffer, m_indexBuffer, bufferSize);
 }
 
 void Renderer::CreateBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Buffer& buffer, vk::raii::DeviceMemory& bufferMemory) {
@@ -184,6 +203,7 @@ void Renderer::InitVulkan() {
     CreateGraphicsPipeline();
     CreateCommandPool();
     CreateVertexBuffer();
+    CreateIndexBuffer();
     CreateCommandBuffers();
     CreateSyncObjects();
 }
@@ -360,8 +380,9 @@ void Renderer::RecordCommandBuffer(const uint32_t imageIndex) {
     commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), m_swapChainExtent));
 
     commandBuffer.bindVertexBuffers(0, *m_vertexBuffer, {0});
+    commandBuffer.bindIndexBuffer( *m_indexBuffer, 0, vk::IndexType::eUint16 );
 
-    commandBuffer.draw(static_cast<uint32_t>(m_vertices.size()), 1, 0, 0);
+    commandBuffer.drawIndexed(m_indices.size(), 1, 0, 0, 0);;
 
     // End rendering
     commandBuffer.endRendering();
