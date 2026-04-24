@@ -125,25 +125,52 @@ uint32_t Renderer::FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags p
     throw std::runtime_error("failed to find suitable memory type!");
 }
 
+void Renderer::CopyBuffer(vk::raii::Buffer & srcBuffer, vk::raii::Buffer & dstBuffer, vk::DeviceSize size) {
+    vk::CommandBufferAllocateInfo allocInfo{ .commandPool = m_commandPool, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1 };
+    vk::raii::CommandBuffer copyCommandBuffer = std::move(m_logicalDevice.allocateCommandBuffers(allocInfo).front());
+
+    copyCommandBuffer.begin(vk::CommandBufferBeginInfo { .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
+
+    copyCommandBuffer.copyBuffer(srcBuffer, dstBuffer, vk::BufferCopy(0, 0, size));
+
+    copyCommandBuffer.end();
+
+    m_graphicsQueue.submit(vk::SubmitInfo{ .commandBufferCount = 1, .pCommandBuffers = &*copyCommandBuffer }, nullptr);
+    m_graphicsQueue.waitIdle();
+}
+
 void Renderer::CreateVertexBuffer() {
-    vk::BufferCreateInfo bufferInfo{.size        = sizeof(m_vertices[0]) * m_vertices.size(),
-                                    .usage       = vk::BufferUsageFlagBits::eVertexBuffer,
+    vk::DeviceSize bufferSize = sizeof(m_vertices[0]) * m_vertices.size();
+
+    vk::raii::Buffer stagingBuffer = nullptr;
+    vk::raii::DeviceMemory stagingBufferMemory = nullptr;
+
+    CreateBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, stagingBuffer, stagingBufferMemory);
+
+    void* dataStaging = stagingBufferMemory.mapMemory(0, bufferSize);
+    memcpy(dataStaging, m_vertices.data(), bufferSize);
+    stagingBufferMemory.unmapMemory();
+
+    CreateBuffer(bufferSize, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst, vk::MemoryPropertyFlagBits::eDeviceLocal, m_vertexBuffer, m_vertexBufferMemory);
+
+    CopyBuffer(stagingBuffer, m_vertexBuffer, bufferSize);
+}
+
+void Renderer::CreateBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Buffer& buffer, vk::raii::DeviceMemory& bufferMemory) {
+    vk::BufferCreateInfo bufferInfo{.size        = size,
+                                    .usage       = usage,
                                     .sharingMode = vk::SharingMode::eExclusive};
 
-    m_vertexBuffer = vk::raii::Buffer(m_logicalDevice, bufferInfo);
+    buffer = vk::raii::Buffer(m_logicalDevice, bufferInfo);
 
-    vk::MemoryRequirements memRequirements = m_vertexBuffer.getMemoryRequirements();
+    vk::MemoryRequirements memRequirements = buffer.getMemoryRequirements();
 
     vk::MemoryAllocateInfo memoryAllocateInfo{
     .allocationSize  = memRequirements.size,
     .memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent)};
 
-    m_vertexBufferMemory = vk::raii::DeviceMemory(m_logicalDevice, memoryAllocateInfo);
-    m_vertexBuffer.bindMemory( *m_vertexBufferMemory, 0 );
-
-    void* data = m_vertexBufferMemory.mapMemory(0, bufferInfo.size);
-    memcpy(data, m_vertices.data(), bufferInfo.size);
-    m_vertexBufferMemory.unmapMemory();
+    bufferMemory = vk::raii::DeviceMemory(m_logicalDevice, memoryAllocateInfo);
+    buffer.bindMemory(bufferMemory, 0 );
 }
 
 void Renderer::InitVulkan() {
@@ -156,9 +183,9 @@ void Renderer::InitVulkan() {
     CreateImageViews();
     CreateGraphicsPipeline();
     CreateCommandPool();
+    CreateVertexBuffer();
     CreateCommandBuffers();
     CreateSyncObjects();
-    CreateVertexBuffer();
 }
 
 void Renderer::TransitionImageLayout(
