@@ -13,8 +13,41 @@ import vulkan_hpp;
 #include "Services/EventSystem/EventBus.h"
 
 #include <vector>
+#include <glm/glm.hpp>
 
 namespace Yume {
+
+struct Vertex
+{
+    glm::vec2 pos;
+    glm::vec3 color;
+
+    static vk::VertexInputBindingDescription getBindingDescription()
+    {
+        vk::VertexInputBindingDescription binding{};
+        binding.binding = 0;
+        binding.stride = sizeof(Vertex);
+        binding.inputRate = vk::VertexInputRate::eVertex;
+        return binding;
+    }
+
+    static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions()
+    {
+        std::array<vk::VertexInputAttributeDescription, 2> attributes{};
+
+        attributes[0].binding = 0;
+        attributes[0].location = 0;
+        attributes[0].format = vk::Format::eR32G32Sfloat;
+        attributes[0].offset = offsetof(Vertex, pos);
+
+        attributes[1].binding = 0;
+        attributes[1].location = 1;
+        attributes[1].format = vk::Format::eR32G32B32Sfloat;
+        attributes[1].offset = offsetof(Vertex, color);
+
+        return attributes;
+    }
+};
 
 class Renderer : public EventListener {
 
@@ -70,6 +103,8 @@ private:
     void CreateSyncObjects();
     void RecreateSwapChain();
     void CleanupSwapChain();
+    void CreateVertexBuffer();
+    uint32_t FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
     vk::SurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
     vk::PresentModeKHR ChooseSwapPresentMode(std::vector<vk::PresentModeKHR> const &availablePresentModes);
@@ -134,6 +169,16 @@ private:
     vk::raii::Fence m_fence = nullptr;
     vk::raii::Semaphore m_imageAvailableSemaphore = nullptr;
 
+    vk::raii::Buffer m_vertexBuffer = nullptr;
+    vk::raii::DeviceMemory m_vertexBufferMemory = nullptr;
+
     bool m_windowResized = false;
+
+
+    const std::vector<Vertex> m_vertices = {
+        {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+    };
 };
 }
