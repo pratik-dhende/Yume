@@ -33,11 +33,7 @@ void Renderer::ShutDown() {
     m_graphicsPipeline = nullptr;
     m_pipelineLayout = nullptr;
 
-    m_swapChainImages.clear();
-    m_swapChainImageViews.clear();
-
-    m_swapChainImageViews.clear();
-    m_swapChain = nullptr;
+    CleanupSwapChain();
 
     m_graphicsQueue = nullptr;
     m_logicalDevice = nullptr;
@@ -96,7 +92,19 @@ void Renderer::Render(const std::vector<Entity*>& entities) {
     // auto queueSubmitResult = m_tmpGraphicsQueue.submit(1, &submitInfo, rawFence);
 }
 
+void Renderer::HandleWindowResize(const int width, const int height) {
+    m_windowResized = true;
+}
+
+void Renderer::OnEvent(const Event& event) {
+    if (event.Is<WindowResizeEvent>()) {
+        auto windowResizeEvent = static_cast<const WindowResizeEvent&>(event);
+        HandleWindowResize(windowResizeEvent.GetWidth(), windowResizeEvent.GetHeight());
+    } 
+}
+
 void Renderer::Init() {
+    ServiceLocator::GetService<EventBus>().AddListener(this, static_cast<int>(EventCategory::Window));
     InitVulkan();
 }
 
@@ -161,15 +169,43 @@ void Renderer::CreateSyncObjects() {
     }
 }
 
+void Renderer::CleanupSwapChain() {
+    m_swapChainImages.clear();
+    m_swapChainImageViews.clear();
+    m_swapChain = nullptr;
+}
+
+void Renderer::RecreateSwapChain() {
+    m_logicalDevice.waitIdle();
+
+    CleanupSwapChain();
+
+    CreateSwapChain();
+    CreateImageViews();
+}
+
+
+
 void Renderer::DrawFrame() {
     auto fenceResult = m_logicalDevice.waitForFences(*m_inFlightFences[m_frameIndex], vk::True, UINT64_MAX);
     if (fenceResult != vk::Result::eSuccess)
     {
         throw std::runtime_error("failed to wait for fence!");
     }
-    m_logicalDevice.resetFences(*m_inFlightFences[m_frameIndex]);
 
     auto [result, imageIndex] = m_swapChain.acquireNextImage(UINT64_MAX, *m_presentCompleteSemaphores[m_frameIndex], nullptr); // Signal to queue to start 
+    if (result == vk::Result::eErrorOutOfDateKHR)
+    {
+        RecreateSwapChain();
+        return;
+    }
+    if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR)
+    {
+        assert(result == vk::Result::eTimeout || result == vk::Result::eNotReady);
+        throw std::runtime_error("failed to acquire swap chain image!");
+    }
+
+    m_logicalDevice.resetFences(*m_inFlightFences[m_frameIndex]);
 
     m_commandBuffers[m_frameIndex].reset();
     RecordCommandBuffer(imageIndex);
@@ -192,6 +228,15 @@ void Renderer::DrawFrame() {
                                             .pImageIndices      = &imageIndex};
 
     result = m_graphicsQueue.presentKHR(presentInfoKHR);
+    if ((result == vk::Result::eSuboptimalKHR) || (result == vk::Result::eErrorOutOfDateKHR) || m_windowResized)
+    {
+        RecreateSwapChain();
+    }
+    else
+    {
+        // There are no other success codes than eSuccess; on any error code, presentKHR already threw an exception.
+        assert(result == vk::Result::eSuccess);
+    }
 
     switch (result)
     {

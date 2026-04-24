@@ -28,6 +28,12 @@ public:
     bool IsInCategory(EventCategory category) const {
         return GetCategoryFlags() & static_cast<int>(category);
     }
+
+    template<typename T>
+    bool Is() const {
+        static_assert(std::is_base_of_v<Event, T>, "T must derive from Event");
+        return GetType() == T::GetStaticType();
+    }
 };
 
 // Enhanced macro to define event types with categories
@@ -52,6 +58,20 @@ public:
     DEFINE_EVENT_TYPE_CATEGORY(KeyPressEvent,
                               static_cast<int>(EventCategory::Input) |
                               static_cast<int>(EventCategory::Keyboard))
+};
+
+class WindowResizeEvent : public Event {
+private:
+    int m_width;
+    int m_height;
+
+public:
+    WindowResizeEvent(int width, int height) : m_width(width), m_height(height) {}
+
+    int GetWidth() const { return m_width; }
+    bool GetHeight() const { return m_height; }
+
+    DEFINE_EVENT_TYPE_CATEGORY(WindowResizeEvent, static_cast<int>(EventCategory::Window))
 };
 
 }

@@ -10,12 +10,13 @@ import vulkan_hpp;
 #include "RenderPassManager.h"
 #include "Scene/CullingSystem.h"
 #include "Services/ShaderCompiler.h"
+#include "Services/EventSystem/EventBus.h"
 
 #include <vector>
 
 namespace Yume {
 
-class Renderer {
+class Renderer : public EventListener {
 
 public:
     Renderer(const bool enableValidationLayer, GLFWwindow* window);
@@ -33,6 +34,8 @@ public:
     void DrawFrame();
 
     void ShutDown();
+
+    void OnEvent(const Event& event) override;
 
 private:
     static const std::vector<char const*> s_validationLayers;
@@ -65,6 +68,8 @@ private:
 	    vk::PipelineStageFlags2 dst_stage_mask);
     void RecordCommandBuffer(const uint32_t imageIndex);
     void CreateSyncObjects();
+    void RecreateSwapChain();
+    void CleanupSwapChain();
 
     vk::SurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
     vk::PresentModeKHR ChooseSwapPresentMode(std::vector<vk::PresentModeKHR> const &availablePresentModes);
@@ -83,6 +88,8 @@ private:
         // Add post-process effects
         // ...
     }
+
+    void HandleWindowResize(const int width, const int height);
 
 private:
     GLFWwindow* m_window = nullptr;
@@ -126,5 +133,7 @@ private:
 
     vk::raii::Fence m_fence = nullptr;
     vk::raii::Semaphore m_imageAvailableSemaphore = nullptr;
+
+    bool m_windowResized = false;
 };
 }

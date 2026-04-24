@@ -19,6 +19,8 @@ public:
 
     void Run();
 
+    static void FramebufferResizeCallback(GLFWwindow* window, int width, int height);
+
 protected:
     virtual void Init() = 0;
     virtual void Update() = 0;

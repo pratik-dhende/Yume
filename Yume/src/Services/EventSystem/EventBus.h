@@ -2,6 +2,7 @@
 
 #include "EventListener.h"
 #include "Event.h"
+#include "ServiceLocator/ServiceLocator.h"
 
 #include <vector>
 #include <queue>
@@ -11,7 +12,7 @@
 
 namespace Yume {
 
-class EventBus {
+class EventBus : public ServiceLocator::IService {
 private:
     struct ListenerInfo {
         EventListener* listener;
