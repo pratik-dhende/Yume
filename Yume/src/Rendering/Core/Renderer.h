@@ -17,6 +17,12 @@ import vulkan_hpp;
 
 namespace Yume {
 
+struct UniformBufferObject {
+    glm::mat4 model;
+    glm::mat4 view;
+    glm::mat4 proj;
+};
+
 struct Vertex
 {
     glm::vec2 pos;
@@ -107,6 +113,11 @@ private:
     void CreateIndexBuffer();
     void CreateBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Buffer& buffer, vk::raii::DeviceMemory& bufferMemory);
     void CopyBuffer(vk::raii::Buffer & srcBuffer, vk::raii::Buffer & dstBuffer, vk::DeviceSize size);
+    void CreateDescriptorSetLayout();
+    void CreateUniformBuffers();
+    void UpdateUniformBuffer(const int frameIndex);
+    void CreateDescriptorPool();
+    void CreateDescriptorSets();
 
     uint32_t FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
@@ -149,6 +160,7 @@ private:
     vk::SurfaceFormatKHR m_swapChainSurfaceFormat;
     vk::Extent2D m_swapChainExtent;
 
+    vk::raii::DescriptorSetLayout m_descriptorSetLayout = nullptr;
     vk::raii::PipelineLayout m_pipelineLayout = nullptr;
     vk::raii::Pipeline m_graphicsPipeline = nullptr;
 
@@ -178,6 +190,13 @@ private:
 
     vk::raii::Buffer m_indexBuffer = nullptr;
     vk::raii::DeviceMemory m_indexBufferMemory = nullptr;
+
+    std::vector<vk::raii::Buffer> m_uniformBuffers;
+    std::vector<vk::raii::DeviceMemory> m_uniformBuffersMemory;
+    std::vector<void*> m_uniformBuffersMapped;
+
+    vk::raii::DescriptorPool m_descriptorPool = nullptr;
+    std::vector<vk::raii::DescriptorSet> m_descriptorSets;
 
     bool m_windowResized = false;   
 
