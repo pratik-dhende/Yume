@@ -3,6 +3,7 @@
 #include "Resource.h"
 #include "ServiceLocator/ServiceLocator.h"
 #include "Rendering/Resources/Shader.h"
+#include "Rendering/Resources/Texture.h"
 
 #include <unordered_map>
 #include <memory>
@@ -13,6 +14,7 @@
 #include <filesystem>
 #include <algorithm>
 #include <fstream>
+#include <stb_image.h>
 
 namespace Yume
 {
@@ -20,15 +22,17 @@ namespace Yume
 template<typename T>
 class ResourceHandle;
 
-using Path = std::filesystem::path;
-
 class ResourceManager : public ServiceLocator::IService {
+    using Path = std::filesystem::path;
+
 protected:
     inline static constexpr const char* ASSETS_DIRECTORY = "assets/";
     inline static constexpr const char* SHADERS_DIRECTORY = "shaders/";
+    inline static constexpr const char* TEXTURES_DIRECTORY = "textures/";
 
     inline static std::unordered_map<std::type_index, std::string> m_assetTypeDirs = {
-        { std::type_index(typeid(Shader)), SHADERS_DIRECTORY }
+        { std::type_index(typeid(Shader)), SHADERS_DIRECTORY },
+        { std::type_index(typeid(Texture)), TEXTURES_DIRECTORY }
     };
 
 public:
@@ -128,7 +132,7 @@ public:
         std::ifstream file(filePath, std::ios::ate);
 
         if (!file.is_open()) {
-            throw std::runtime_error("failed to open file!");
+            throw std::runtime_error(filePath);
         }
 
         buffer.resize(file.tellg());
@@ -136,6 +140,24 @@ public:
         file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
 
         file.close();
+
+        return true;
+    }
+
+    template<typename T>
+    bool ReadImage(const std::string& resourceId, int& outImageWidth, int& outImageHeight, int& outImageChannels, stbi_uc** out) {
+        auto filePath = GetNormalizedAssetPath<T>(resourceId).string();
+        int imageWidth, imageHeight, imageChannels;
+        auto pixels = stbi_load(filePath.c_str(), &imageWidth, &imageHeight, &imageChannels, STBI_rgb_alpha);
+
+        if (!pixels) {
+            throw std::runtime_error("failed to load texture image!");
+        }
+
+        outImageWidth = imageWidth;
+        outImageHeight = imageHeight;
+        outImageChannels = imageChannels;
+        *out = pixels;
 
         return true;
     }
@@ -174,7 +196,8 @@ protected:
         auto it = m_assetTypeDirs.find(std::type_index(typeid(T)));
         if (it != m_assetTypeDirs.end()) {
             return ToNormalizedPath(ASSETS_DIRECTORY + it->second + resourceId);
-        } else {
+        }
+        else {
             throw std::runtime_error("Unsupported asset type: " + std::string(typeid(T).name()));
         }
     }

@@ -2,6 +2,7 @@
   "dependencies": [
     "glfw3",
     "glm",
-    "shader-slang"
+    "shader-slang",
+    "stb"
   ]
 }

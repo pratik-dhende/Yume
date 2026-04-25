@@ -15,6 +15,7 @@ message(STATUS "Found Vulkan SDK: ${Vulkan_VERSION}")
 find_package(slang CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
+find_package(Stb REQUIRED)
 
 file(GLOB_RECURSE ENGINE_SOURCES src/*.cpp)
 
@@ -23,6 +24,7 @@ add_library(Yume STATIC ${ENGINE_SOURCES})
 target_include_directories(Yume
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${Stb_INCLUDE_DIR}
     INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )

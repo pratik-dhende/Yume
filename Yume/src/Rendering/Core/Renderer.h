@@ -109,6 +109,7 @@ private:
     void CreateSyncObjects();
     void RecreateSwapChain();
     void CleanupSwapChain();
+    void CreateTextureImage();
     void CreateVertexBuffer();
     void CreateIndexBuffer();
     void CreateBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Buffer& buffer, vk::raii::DeviceMemory& bufferMemory);
@@ -118,6 +119,11 @@ private:
     void UpdateUniformBuffer(const int frameIndex);
     void CreateDescriptorPool();
     void CreateDescriptorSets();
+    void CreateImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Image& outImage, vk::raii::DeviceMemory& outImageMemory);
+    vk::raii::CommandBuffer BeginSingleTimeCommands();
+    void EndSingleTimeCommands(vk::raii::CommandBuffer& commandBuffer);
+    void TransitionImageLayout(const vk::raii::Image& image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
+    void CopyBufferToImage(const vk::raii::Buffer& buffer, vk::raii::Image& image, uint32_t width, uint32_t height);
 
     uint32_t FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
@@ -127,6 +133,7 @@ private:
     uint32_t ChooseSwapMinImageCount(vk::SurfaceCapabilitiesKHR const &surfaceCapabilities);
 
     vk::raii::ShaderModule CreateShaderModule(ShaderBlob* bytecode);
+    
 
     void SetupRenderPasses() {
         // Create geometry pass
@@ -197,6 +204,9 @@ private:
 
     vk::raii::DescriptorPool m_descriptorPool = nullptr;
     std::vector<vk::raii::DescriptorSet> m_descriptorSets;
+
+    vk::raii::Image m_textureImage = nullptr;
+    vk::raii::DeviceMemory m_textureImageMemory = nullptr;
 
     bool m_windowResized = false;   
 
