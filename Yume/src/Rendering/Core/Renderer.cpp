@@ -27,6 +27,12 @@ Renderer::Renderer(const bool enableValidationLayer, GLFWwindow* window) : m_ena
 void Renderer::ShutDown() {
     m_logicalDevice.waitIdle();
 
+    m_textureSampler = nullptr;
+    m_textureImageView = nullptr;
+
+    m_textureImageMemory = nullptr;
+    m_textureImage = nullptr;
+
     m_descriptorSets.clear();
     m_descriptorPool = nullptr;
 
@@ -255,11 +261,13 @@ void Renderer::InitVulkan() {
     SelectPhysicalDevice();
     CreateLogicalDevice();
     CreateSwapChain();
-    CreateImageViews();
+    CreateSwapChainImageViews();
     CreateDescriptorSetLayout();
     CreateGraphicsPipeline();
     CreateCommandPool();
     CreateTextureImage();
+    CreateTextureImageView();
+    CreateTextureSampler();
     CreateVertexBuffer();
     CreateIndexBuffer();
     CreateUniformBuffers();
@@ -267,6 +275,32 @@ void Renderer::InitVulkan() {
     CreateDescriptorSets();
     CreateCommandBuffers();
     CreateSyncObjects();
+}
+
+void Renderer::CreateTextureSampler() {
+    vk::PhysicalDeviceProperties properties = m_physicalDevice.getProperties();
+    vk::SamplerCreateInfo        samplerInfo{
+                .magFilter        = vk::Filter::eLinear,
+                .minFilter        = vk::Filter::eLinear,
+                .mipmapMode       = vk::SamplerMipmapMode::eLinear,
+                .addressModeU     = vk::SamplerAddressMode::eRepeat,
+                .addressModeV     = vk::SamplerAddressMode::eRepeat,
+                .addressModeW     = vk::SamplerAddressMode::eRepeat,
+                .mipLodBias       = 0.0f,
+                .anisotropyEnable = vk::True,
+                .maxAnisotropy    = properties.limits.maxSamplerAnisotropy,
+                .compareEnable    = vk::False,
+                .compareOp        = vk::CompareOp::eAlways};
+    m_textureSampler = vk::raii::Sampler(m_logicalDevice, samplerInfo);
+}
+
+vk::raii::ImageView Renderer::CreateImageView(const vk::raii::Image& image, vk::Format format) {
+    vk::ImageViewCreateInfo viewInfo{ .image = image, .viewType = vk::ImageViewType::e2D, .format = format, .subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
+    return vk::raii::ImageView(m_logicalDevice, viewInfo );
+}
+
+void Renderer::CreateTextureImageView() {
+    m_textureImageView = CreateImageView(m_textureImage, vk::Format::eR8G8B8A8Srgb);
 }
 
 void Renderer::CopyBufferToImage(const vk::raii::Buffer& buffer, vk::raii::Image& image, uint32_t width, uint32_t height) {
@@ -358,14 +392,12 @@ void Renderer::CreateTextureImage() {
     memcpy(data, textureHandle->GetPixels(), imageSize);
     stagingBufferMemory.unmapMemory();
 
-    vk::raii::Image textureImageTemp({});
-    vk::raii::DeviceMemory textureImageMemoryTemp({});
-    CreateImage(width, height, vk::Format::eR8G8B8A8Srgb, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal, textureImageTemp, textureImageMemoryTemp);
+    CreateImage(width, height, vk::Format::eR8G8B8A8Srgb, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal, m_textureImage, m_textureImageMemory);
 
-    TransitionImageLayout(textureImageTemp, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
-    CopyBufferToImage(stagingBuffer, textureImageTemp, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
+    TransitionImageLayout(m_textureImage, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+    CopyBufferToImage(stagingBuffer, m_textureImage, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
 
-    TransitionImageLayout(textureImageTemp, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+    TransitionImageLayout(m_textureImage, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
 }
 
 void Renderer::CreateDescriptorSetLayout() {
@@ -433,7 +465,7 @@ void Renderer::RecreateSwapChain() {
     CleanupSwapChain();
 
     CreateSwapChain();
-    CreateImageViews();
+    CreateSwapChainImageViews();
 }
 
 
@@ -662,19 +694,14 @@ void Renderer::CreateSurface() {
     m_surface = vk::raii::SurfaceKHR(m_instance, _surface);
 }
 
-void Renderer::CreateImageViews() {
+void Renderer::CreateSwapChainImageViews() {
     assert(m_swapChainImageViews.empty());
 
-    vk::ImageViewCreateInfo imageViewCreateInfo{ .viewType         = vk::ImageViewType::e2D,
-                                                 .format           = m_swapChainSurfaceFormat.format,
-                                                 .subresourceRange = imageViewCreateInfo.subresourceRange = {.aspectMask = vk::ImageAspectFlagBits::eColor, .levelCount = 1, .layerCount = 1} };
-
-    imageViewCreateInfo.components = { vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity};
-
+    vk::ImageViewCreateInfo imageViewCreateInfo{.viewType = vk::ImageViewType::e2D, .format = m_swapChainSurfaceFormat.format, .subresourceRange = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}};
     for (auto &image : m_swapChainImages)
     {
         imageViewCreateInfo.image = image;
-        m_swapChainImageViews.emplace_back( m_logicalDevice, imageViewCreateInfo );
+        m_swapChainImageViews.emplace_back(m_logicalDevice, imageViewCreateInfo);
     }
 }
 
@@ -777,7 +804,7 @@ void Renderer::CreateLogicalDevice() {
                        vk::PhysicalDeviceVulkan13Features, 
                        vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT> 
     featureChain = {
-        {},                                                          // vk::PhysicalDeviceFeatures2
+        {.features = {.samplerAnisotropy = true } },                                                          // vk::PhysicalDeviceFeatures2
         {.shaderDrawParameters = true},                              // vk::PhysicalDeviceVulkan11Features
         {.synchronization2 = true, .dynamicRendering = true},        // vk::PhysicalDeviceVulkan13Features
         {.extendedDynamicState = true}                               // vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT

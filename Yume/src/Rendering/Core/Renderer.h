@@ -93,7 +93,7 @@ private:
     void CreateLogicalDevice();
     void CreateSurface();
     void CreateSwapChain();
-    void CreateImageViews();
+    void CreateSwapChainImageViews();
     void CreateGraphicsPipeline();
     void CreateCommandPool();
     void CreateCommandBuffers();
@@ -124,6 +124,9 @@ private:
     void EndSingleTimeCommands(vk::raii::CommandBuffer& commandBuffer);
     void TransitionImageLayout(const vk::raii::Image& image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
     void CopyBufferToImage(const vk::raii::Buffer& buffer, vk::raii::Image& image, uint32_t width, uint32_t height);
+    void CreateTextureImageView();
+    vk::raii::ImageView CreateImageView(const vk::raii::Image& image, vk::Format format);
+    void CreateTextureSampler();
 
     uint32_t FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
@@ -207,6 +210,9 @@ private:
 
     vk::raii::Image m_textureImage = nullptr;
     vk::raii::DeviceMemory m_textureImageMemory = nullptr;
+
+    vk::raii::ImageView m_textureImageView = nullptr;
+    vk::raii::Sampler m_textureSampler = nullptr;
 
     bool m_windowResized = false;   
 
