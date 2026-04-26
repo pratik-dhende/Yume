@@ -15,8 +15,7 @@ stbi_uc* Texture::GetPixels() const {
 }
 
 bool Texture::DoLoad() {
-    ServiceLocator::GetService<ResourceManager>().ReadImage<Texture>(GetId(), m_width, m_height, m_channels, &m_pixels);
-    return true;
+    return ServiceLocator::GetService<ResourceManager>().ReadImage<Texture>(GetId(), m_width, m_height, m_channels, &m_pixels);
 }
 
 bool Texture::DoUnload() {

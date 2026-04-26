@@ -37,6 +37,9 @@ namespace Yume {
     }
 
     bool Shader::DoUnload() {
+        if (IsLoaded()) {
+            m_bytecode->release();
+        }
         return true;
     }
 

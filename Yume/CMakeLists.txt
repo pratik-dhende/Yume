@@ -16,8 +16,14 @@ find_package(slang CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(Stb REQUIRED)
+find_package(tinyobjloader CONFIG REQUIRED)
 
 file(GLOB_RECURSE ENGINE_SOURCES src/*.cpp)
+
+message(STATUS "ENGINE_SOURCES:")
+foreach(file ${ENGINE_SOURCES})
+    message(STATUS "  ${file}")
+endforeach()
 
 add_library(Yume STATIC ${ENGINE_SOURCES})
 
@@ -35,14 +41,16 @@ target_link_libraries(Yume
         slang::slang
         glfw
         glm::glm-header-only
+        tinyobjloader::tinyobjloader
 )
 
 target_compile_definitions(Yume
-    PRIVATE
+    PUBLIC
         VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
         GLFW_INCLUDE_VULKAN
         VULKAN_HPP_HANDLE_ERROR_OUT_OF_DATE_AS_SUCCESS
         GLM_FORCE_DEPTH_ZERO_TO_ONE
+        GLM_ENABLE_EXPERIMENTAL
 )
 
 set_target_properties(Yume PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/${PROJECT_NAME})

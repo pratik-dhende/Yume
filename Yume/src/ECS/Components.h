@@ -75,7 +75,7 @@ public:
 
 		m_material->Bind();
 		m_material->SetUniform("modelMatrix", transform->GetTransformMatrix());
-		m_mesh->Render();
+		//m_mesh->Render();
 	}
 
 	BoundingBox GetBoundingBox() const;

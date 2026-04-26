@@ -4,6 +4,7 @@
 #include "ServiceLocator/ServiceLocator.h"
 #include "Rendering/Resources/Shader.h"
 #include "Rendering/Resources/Texture.h"
+#include "Rendering/Resources/Mesh.h"
 
 #include <unordered_map>
 #include <memory>
@@ -15,6 +16,7 @@
 #include <algorithm>
 #include <fstream>
 #include <stb_image.h>
+#include <tiny_obj_loader.h>
 
 namespace Yume
 {
@@ -29,10 +31,12 @@ protected:
     inline static constexpr const char* ASSETS_DIRECTORY = "assets/";
     inline static constexpr const char* SHADERS_DIRECTORY = "shaders/";
     inline static constexpr const char* TEXTURES_DIRECTORY = "textures/";
+    inline static constexpr const char* MODELS_DIRECTORY = "models/";
 
     inline static std::unordered_map<std::type_index, std::string> m_assetTypeDirs = {
         { std::type_index(typeid(Shader)), SHADERS_DIRECTORY },
-        { std::type_index(typeid(Texture)), TEXTURES_DIRECTORY }
+        { std::type_index(typeid(Texture)), TEXTURES_DIRECTORY },
+        { std::type_index(typeid(Mesh)), MODELS_DIRECTORY }
     };
 
 public:
@@ -158,6 +162,47 @@ public:
         outImageHeight = imageHeight;
         outImageChannels = imageChannels;
         *out = pixels;
+
+        return true;
+    }
+
+    template<typename T>
+    bool LoadModel(const std::string& resourceId, std::vector<Mesh::Vertex>& outVertices, std::vector<uint32_t>& outIndices) {
+        auto filePath = GetNormalizedAssetPath<T>(resourceId).string();
+
+        tinyobj::attrib_t attrib;
+        std::vector<tinyobj::shape_t> shapes;
+        std::vector<tinyobj::material_t> materials;
+        std::string warn, err;
+
+        if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filePath.c_str())) {
+            throw std::runtime_error(warn + err);
+        }
+
+        std::unordered_map<Mesh::Vertex, uint32_t> uniqueVertices{};
+
+        for (const auto& shape : shapes) {
+            for (const auto& index : shape.mesh.indices) {
+                Mesh::Vertex vertex{};
+
+                vertex.position = {
+                    attrib.vertices[3 * index.vertex_index + 0],
+                    attrib.vertices[3 * index.vertex_index + 1],
+                    attrib.vertices[3 * index.vertex_index + 2]
+                };
+
+                vertex.uv = {
+                    attrib.texcoords[2 * index.texcoord_index + 0],
+                    1.0 - attrib.texcoords[2 * index.texcoord_index + 1]
+                };
+
+                if (uniqueVertices.find(vertex) == uniqueVertices.end()) {
+                    uniqueVertices[vertex] = static_cast<uint32_t>(outVertices.size());
+                    outVertices.push_back(vertex);
+                }
+                outIndices.push_back(uniqueVertices[vertex]);
+            }
+        }
 
         return true;
     }

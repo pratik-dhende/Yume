@@ -3,6 +3,7 @@
     "glfw3",
     "glm",
     "shader-slang",
-    "stb"
+    "stb",
+    "tinyobjloader"
   ]
 }

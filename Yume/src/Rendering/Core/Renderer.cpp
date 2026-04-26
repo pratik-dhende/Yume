@@ -9,6 +9,8 @@
 
 #include "Renderer.h"
 #include "Rendering/Resources/Shader.h"
+#include "Rendering/Resources/Texture.h"
+#include "Rendering/Resources/Mesh.h"
 #include "Services/ResourceManager/ResourceManager.h"
 #include "Services/ResourceManager/ResourceHandle.h"
 
@@ -284,6 +286,7 @@ void Renderer::InitVulkan() {
     CreateTextureImage();
     CreateTextureImageView();
     CreateTextureSampler();
+    LoadModel();
     CreateVertexBuffer();
     CreateIndexBuffer();
     CreateUniformBuffers();
@@ -291,6 +294,24 @@ void Renderer::InitVulkan() {
     CreateDescriptorSets();
     CreateCommandBuffers();
     CreateSyncObjects();
+}
+
+void Renderer::LoadModel() {
+    auto modelHandle = ServiceLocator::GetService<ResourceManager>().Load<Mesh>("viking_room.obj");
+
+    auto meshVertices = modelHandle->GetVertices();
+    auto meshIndices = modelHandle->GetIndices();
+    auto meshVertexCount = static_cast<int>(meshVertices.size());
+    auto meshIndexCount = static_cast<int>(meshIndices.size());
+
+    m_vertices.resize(meshVertexCount);
+    for(int i = 0; i < meshVertexCount; ++i) {
+        m_vertices[i].pos = meshVertices[i].position;
+        m_vertices[i].texCoord= meshVertices[i].uv;
+        m_vertices[i].color = glm::vec3(1.0, 1.0, 1.0);
+    }
+
+    m_indices = meshIndices;
 }
 
 bool Renderer::HasStencilComponent(vk::Format format) {
@@ -424,7 +445,7 @@ void Renderer::CreateImage(uint32_t width, uint32_t height, vk::Format format, v
 }
 
 void Renderer::CreateTextureImage() {
-    auto textureHandle = ServiceLocator::GetService<ResourceManager>().Load<Texture>("texture.jpg");
+    auto textureHandle = ServiceLocator::GetService<ResourceManager>().Load<Texture>("viking_room.png");
 
     auto width = static_cast<uint32_t>(textureHandle->GetWidth());
     auto height = static_cast<uint32_t>(textureHandle->GetHeight());
@@ -652,7 +673,7 @@ void Renderer::RecordCommandBuffer(const uint32_t imageIndex) {
     commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), m_swapChainExtent));
 
     commandBuffer.bindVertexBuffers(0, *m_vertexBuffer, {0});
-    commandBuffer.bindIndexBuffer( *m_indexBuffer, 0, vk::IndexType::eUint16 );
+    commandBuffer.bindIndexBuffer( *m_indexBuffer, 0, vk::IndexType::eUint32 );
 
     commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_pipelineLayout, 0, *m_descriptorSets[m_frameIndex], nullptr);
     commandBuffer.drawIndexed(m_indices.size(), 1, 0, 0, 0);;
