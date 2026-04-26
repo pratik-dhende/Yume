@@ -25,7 +25,7 @@ struct UniformBufferObject {
 
 struct Vertex
 {
-    glm::vec2 pos;
+    glm::vec3 pos;
     glm::vec3 color;
     glm::vec2 texCoord;
 
@@ -44,7 +44,7 @@ struct Vertex
 
         attributes[0].binding = 0;
         attributes[0].location = 0;
-        attributes[0].format = vk::Format::eR32G32Sfloat;
+        attributes[0].format = vk::Format::eR32G32B32Sfloat;
         attributes[0].offset = offsetof(Vertex, pos);
 
         attributes[1].binding = 0;
@@ -104,16 +104,17 @@ private:
     void CreateCommandPool();
     void CreateCommandBuffers();
     void TransitionImageLayout(
-	    uint32_t                imageIndex,
-	    vk::ImageLayout         old_layout,
-	    vk::ImageLayout         new_layout,
-	    vk::AccessFlags2        src_access_mask,
-	    vk::AccessFlags2        dst_access_mask,
-	    vk::PipelineStageFlags2 src_stage_mask,
-	    vk::PipelineStageFlags2 dst_stage_mask);
+	    vk::Image               image,
+	    vk::ImageLayout         oldLayout,
+	    vk::ImageLayout         newLayout,
+	    vk::AccessFlags2        srcAccessMask,
+	    vk::AccessFlags2        dstAccessMask,
+	    vk::Flags<vk::PipelineStageFlagBits2> srcStageMask,
+	    vk::Flags<vk::PipelineStageFlagBits2> dstStageMask,
+        vk::ImageAspectFlags    imageAspectFlags);
     void RecordCommandBuffer(const uint32_t imageIndex);
     void CreateSyncObjects();
-    void RecreateSwapChain();
+    void HandleResize();
     void CleanupSwapChain();
     void CreateTextureImage();
     void CreateVertexBuffer();
@@ -131,8 +132,12 @@ private:
     void TransitionImageLayout(const vk::raii::Image& image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
     void CopyBufferToImage(const vk::raii::Buffer& buffer, vk::raii::Image& image, uint32_t width, uint32_t height);
     void CreateTextureImageView();
-    vk::raii::ImageView CreateImageView(const vk::raii::Image& image, vk::Format format);
+    vk::raii::ImageView CreateImageView(const vk::raii::Image& image, vk::Format format, vk::ImageAspectFlags imageFlags);
     void CreateTextureSampler();
+    void CreateDepthResources();
+    vk::Format FindSupportedFormat(const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features);
+    vk::Format FindDepthFormat();
+    bool HasStencilComponent(vk::Format format);
 
     uint32_t FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
@@ -175,6 +180,11 @@ private:
     std::vector<vk::raii::ImageView> m_swapChainImageViews;
     vk::SurfaceFormatKHR m_swapChainSurfaceFormat;
     vk::Extent2D m_swapChainExtent;
+
+    vk::Format m_depthFormat;
+    vk::raii::Image m_depthImage = nullptr;
+    vk::raii::DeviceMemory m_depthImageMemory = nullptr;
+    vk::raii::ImageView m_depthImageView = nullptr;
 
     vk::raii::DescriptorSetLayout m_descriptorSetLayout = nullptr;
     vk::raii::PipelineLayout m_pipelineLayout = nullptr;
@@ -223,14 +233,20 @@ private:
     bool m_windowResized = false;   
 
     const std::vector<Vertex> m_vertices = {
-        {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-        {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-        {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-        {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
+        {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+        {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
+
+        {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+        {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+        {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+        {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
     };
 
     const std::vector<uint16_t> m_indices = {
-        0, 1, 2, 2, 3, 0
+        0, 1, 2, 2, 3, 0,
+        4, 5, 6, 6, 7, 4
     };
 };
 }
