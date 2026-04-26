@@ -217,8 +217,11 @@ void Renderer::UpdateUniformBuffer(const int frameIndex) {
 }
 
 void Renderer::CreateDescriptorPool() {
-    vk::DescriptorPoolSize poolSize(vk::DescriptorType::eUniformBuffer, s_maxFramesInFlight);
-    vk::DescriptorPoolCreateInfo poolInfo{.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, .maxSets = s_maxFramesInFlight, .poolSizeCount = 1, .pPoolSizes = &poolSize };
+    std::array poolSize {
+        vk::DescriptorPoolSize( vk::DescriptorType::eUniformBuffer, s_maxFramesInFlight),
+        vk::DescriptorPoolSize(  vk::DescriptorType::eCombinedImageSampler, s_maxFramesInFlight)
+    };
+    vk::DescriptorPoolCreateInfo poolInfo{.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, .maxSets = s_maxFramesInFlight, .poolSizeCount = static_cast<uint32_t>(poolSize.size()), .pPoolSizes = poolSize.data() };
 
     m_descriptorPool = vk::raii::DescriptorPool(m_logicalDevice, poolInfo);
     m_descriptorSets.clear();
@@ -232,8 +235,15 @@ void Renderer::CreateDescriptorSets() {
 
     for (size_t i = 0; i < s_maxFramesInFlight; i++) {
         vk::DescriptorBufferInfo bufferInfo{ .buffer = m_uniformBuffers[i], .offset = 0, .range = sizeof(UniformBufferObject) };
-        vk::WriteDescriptorSet descriptorWrite{ .dstSet = m_descriptorSets[i], .dstBinding = 0, .dstArrayElement = 0, .descriptorCount = 1, .descriptorType = vk::DescriptorType::eUniformBuffer, .pBufferInfo = &bufferInfo };
-        m_logicalDevice.updateDescriptorSets(descriptorWrite, {});
+        vk::DescriptorImageInfo imageInfo{ .sampler = m_textureSampler, .imageView = m_textureImageView, .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal};
+
+        std::array descriptorWrites{
+            vk::WriteDescriptorSet{ .dstSet = m_descriptorSets[i], .dstBinding = 0, .dstArrayElement = 0, .descriptorCount = 1,
+                .descriptorType = vk::DescriptorType::eUniformBuffer, .pBufferInfo = &bufferInfo },
+            vk::WriteDescriptorSet{ .dstSet = m_descriptorSets[i], .dstBinding = 1, .dstArrayElement = 0, .descriptorCount = 1,
+                .descriptorType = vk::DescriptorType::eCombinedImageSampler, .pImageInfo = &imageInfo }
+        };
+        m_logicalDevice.updateDescriptorSets(descriptorWrites, {});
     }
 }
 
@@ -401,8 +411,11 @@ void Renderer::CreateTextureImage() {
 }
 
 void Renderer::CreateDescriptorSetLayout() {
-    vk::DescriptorSetLayoutBinding uboLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex, nullptr);
-    vk::DescriptorSetLayoutCreateInfo layoutInfo{.bindingCount = 1, .pBindings = &uboLayoutBinding};
+    std::array bindings = {
+        vk::DescriptorSetLayoutBinding( 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex, nullptr),
+        vk::DescriptorSetLayoutBinding( 1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, nullptr)
+    };
+    vk::DescriptorSetLayoutCreateInfo layoutInfo{.bindingCount = static_cast<uint32_t>(bindings.size()), .pBindings = bindings.data()};
     m_descriptorSetLayout = vk::raii::DescriptorSetLayout(m_logicalDevice, layoutInfo);
 }
 
@@ -804,7 +817,7 @@ void Renderer::CreateLogicalDevice() {
                        vk::PhysicalDeviceVulkan13Features, 
                        vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT> 
     featureChain = {
-        {.features = {.samplerAnisotropy = true } },                                                          // vk::PhysicalDeviceFeatures2
+        {.features = {.samplerAnisotropy = true } },                 // vk::PhysicalDeviceFeatures2
         {.shaderDrawParameters = true},                              // vk::PhysicalDeviceVulkan11Features
         {.synchronization2 = true, .dynamicRendering = true},        // vk::PhysicalDeviceVulkan13Features
         {.extendedDynamicState = true}                               // vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
