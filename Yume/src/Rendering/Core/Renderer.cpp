@@ -64,6 +64,10 @@ void Renderer::ShutDown() {
     m_depthImage = nullptr;
     m_depthFormat = vk::Format{};
     
+    m_colorImageView = nullptr;
+    m_colorImage = nullptr;
+    m_colorImageMemory = nullptr;
+
     CleanupSwapChain();
 
     m_graphicsQueue = nullptr;
@@ -276,9 +280,11 @@ void Renderer::InitVulkan() {
     SetupDebugMessenger();
     CreateSurface();
     SelectPhysicalDevice();
+    m_msaaSamples = GetMaxUsableSampleCount();
     CreateLogicalDevice();
     CreateSwapChain();
     CreateSwapChainImageViews();
+    CreateColorResources();
     CreateDepthResources();
     CreateDescriptorSetLayout();
     CreateGraphicsPipeline();
@@ -294,6 +300,27 @@ void Renderer::InitVulkan() {
     CreateDescriptorSets();
     CreateCommandBuffers();
     CreateSyncObjects();
+}
+
+void Renderer::CreateColorResources() {
+    vk::Format colorFormat = m_swapChainSurfaceFormat.format;
+
+    CreateImage(m_swapChainExtent.width, m_swapChainExtent.height, 1, m_msaaSamples, colorFormat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment,  vk::MemoryPropertyFlagBits::eDeviceLocal, m_colorImage, m_colorImageMemory);
+    m_colorImageView = CreateImageView(m_colorImage, colorFormat, vk::ImageAspectFlagBits::eColor, 1);
+}
+
+vk::SampleCountFlagBits Renderer::GetMaxUsableSampleCount() {
+    vk::PhysicalDeviceProperties physicalDeviceProperties = m_physicalDevice.getProperties();
+
+    vk::SampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts & physicalDeviceProperties.limits.framebufferDepthSampleCounts;
+    if (counts & vk::SampleCountFlagBits::e64) { return vk::SampleCountFlagBits::e64; }
+    if (counts & vk::SampleCountFlagBits::e32) { return vk::SampleCountFlagBits::e32; }
+    if (counts & vk::SampleCountFlagBits::e16) { return vk::SampleCountFlagBits::e16; }
+    if (counts & vk::SampleCountFlagBits::e8) { return vk::SampleCountFlagBits::e8; }
+    if (counts & vk::SampleCountFlagBits::e4) { return vk::SampleCountFlagBits::e4; }
+    if (counts & vk::SampleCountFlagBits::e2) { return vk::SampleCountFlagBits::e2; }
+
+    return vk::SampleCountFlagBits::e1;
 }
 
 void Renderer::GenerateMipmaps(vk::raii::Image& image, vk::Format imageFormat, int32_t width, int32_t height, uint32_t mipLevels) {
@@ -412,7 +439,7 @@ vk::Format Renderer::FindSupportedFormat(const std::vector<vk::Format>& candidat
 
 void Renderer::CreateDepthResources() {
     m_depthFormat = FindDepthFormat();
-    CreateImage(m_swapChainExtent.width, m_swapChainExtent.height, 1, m_depthFormat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal, m_depthImage, m_depthImageMemory);
+    CreateImage(m_swapChainExtent.width, m_swapChainExtent.height, 1, m_msaaSamples, m_depthFormat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal, m_depthImage, m_depthImageMemory);
     m_depthImageView = CreateImageView(m_depthImage, m_depthFormat, vk::ImageAspectFlagBits::eDepth, 1);
 }
 
@@ -502,10 +529,10 @@ void Renderer::EndSingleTimeCommands(vk::raii::CommandBuffer& commandBuffer) {
     m_graphicsQueue.waitIdle();
 }
 
-void Renderer::CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Image& outImage, vk::raii::DeviceMemory& outImageMemory) {
+void Renderer::CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels, vk::SampleCountFlagBits numSamples, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Image& outImage, vk::raii::DeviceMemory& outImageMemory) {
     vk::ImageCreateInfo imageInfo{ .imageType = vk::ImageType::e2D, .format = format,
         .extent = {width, height, 1}, .mipLevels = mipLevels, .arrayLayers = 1,
-        .samples = vk::SampleCountFlagBits::e1, .tiling = tiling,
+        .samples = numSamples, .tiling = tiling,
         .usage = usage, .sharingMode = vk::SharingMode::eExclusive };
 
     outImage = vk::raii::Image(m_logicalDevice, imageInfo);
@@ -535,7 +562,7 @@ void Renderer::CreateTextureImage() {
     memcpy(data, textureHandle->GetPixels(), imageSize);
     stagingBufferMemory.unmapMemory();
 
-    CreateImage(width, height, m_mipLevels, vk::Format::eR8G8B8A8Srgb, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal, m_textureImage, m_textureImageMemory);
+    CreateImage(width, height, m_mipLevels, vk::SampleCountFlagBits::e1, vk::Format::eR8G8B8A8Srgb, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal, m_textureImage, m_textureImageMemory);
 
     TransitionImageLayout(m_textureImage, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, m_mipLevels);
     CopyBufferToImage(stagingBuffer, m_textureImage, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
@@ -613,6 +640,7 @@ void Renderer::HandleResize() {
 
     CreateSwapChain();
     CreateSwapChainImageViews();
+    CreateColorResources();
     CreateDepthResources();
 }
 
@@ -702,6 +730,16 @@ void Renderer::RecordCommandBuffer(const uint32_t imageIndex) {
     );
 
     TransitionImageLayout(
+        *m_colorImage,
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eColorAttachmentOptimal,
+        vk::AccessFlagBits2::eColorAttachmentWrite,
+        vk::AccessFlagBits2::eColorAttachmentWrite,
+        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+        vk::ImageAspectFlagBits::eColor);
+
+    TransitionImageLayout(
         *m_depthImage,
         vk::ImageLayout::eUndefined,
         vk::ImageLayout::eDepthAttachmentOptimal,
@@ -715,9 +753,12 @@ void Renderer::RecordCommandBuffer(const uint32_t imageIndex) {
     // Set up the color attachment
     vk::ClearValue clearColor = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f);
     vk::ClearValue clearDepth = vk::ClearDepthStencilValue(1.0f, 0);
-    vk::RenderingAttachmentInfo attachmentInfo = {
-		    .imageView   = m_swapChainImageViews[imageIndex],
+    vk::RenderingAttachmentInfo colorAttachmentInfo = {
+		    .imageView   = m_colorImageView,
 		    .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
+            .resolveMode = vk::ResolveModeFlagBits::eAverage,
+            .resolveImageView = m_swapChainImageViews[imageIndex],
+            .resolveImageLayout = vk::ImageLayout::eColorAttachmentOptimal,
 		    .loadOp      = vk::AttachmentLoadOp::eClear,
 		    .storeOp     = vk::AttachmentStoreOp::eStore,
 		    .clearValue  = clearColor};
@@ -734,7 +775,7 @@ void Renderer::RecordCommandBuffer(const uint32_t imageIndex) {
 		    .renderArea           = {.offset = {0, 0}, .extent = m_swapChainExtent},
 		    .layerCount           = 1,
 		    .colorAttachmentCount = 1,
-		    .pColorAttachments    = &attachmentInfo,
+		    .pColorAttachments    = &colorAttachmentInfo,
             .pDepthAttachment     = &depthAttachmentInfo};
 
     // Begin rendering
@@ -816,7 +857,8 @@ void Renderer::CreateGraphicsPipeline() {
                                                         .depthBiasEnable         = vk::False,
                                                         .lineWidth               = 1.0f};
 
-    vk::PipelineMultisampleStateCreateInfo multisampling{.rasterizationSamples = vk::SampleCountFlagBits::e1, .sampleShadingEnable = vk::False};
+    vk::PipelineMultisampleStateCreateInfo multisampling{.rasterizationSamples = m_msaaSamples, .sampleShadingEnable = vk::True, .minSampleShading = 0.2f}; // min fraction for sample shading; closer to one is smoother
+
 
     vk::PipelineColorBlendAttachmentState colorBlendAttachment{ .blendEnable = vk::False,
                                                                 .colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA};
@@ -981,7 +1023,7 @@ void Renderer::CreateLogicalDevice() {
                        vk::PhysicalDeviceVulkan13Features, 
                        vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT> 
     featureChain = {
-        {.features = {.samplerAnisotropy = true } },                 // vk::PhysicalDeviceFeatures2
+        {.features = { .sampleRateShading = true, .samplerAnisotropy = true} },                 // vk::PhysicalDeviceFeatures2
         {.shaderDrawParameters = true},                              // vk::PhysicalDeviceVulkan11Features
         {.synchronization2 = true, .dynamicRendering = true},        // vk::PhysicalDeviceVulkan13Features
         {.extendedDynamicState = true}                               // vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
@@ -1042,7 +1084,9 @@ bool Renderer::IsDeviceSuitable(const vk::raii::PhysicalDevice& physicalDevice) 
     bool supportsRequiredFeatures = features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering &&
                                     features.template get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState &&
                                     features.template get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters &&
-                                    features.template get<vk::PhysicalDeviceVulkan13Features>().synchronization2;
+                                    features.template get<vk::PhysicalDeviceVulkan13Features>().synchronization2 &&
+                                    features.template get<vk::PhysicalDeviceFeatures2>().features.samplerAnisotropy &&
+                                    features.template get<vk::PhysicalDeviceFeatures2>().features.sampleRateShading;
 
     // Return true if the physicalDevice meets all the criteria
     return supportsVulkan1_3 && supportsGraphics && supportsAllRequiredExtensions && supportsRequiredFeatures;

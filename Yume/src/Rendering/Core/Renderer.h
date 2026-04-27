@@ -126,7 +126,7 @@ private:
     void UpdateUniformBuffer(const int frameIndex);
     void CreateDescriptorPool();
     void CreateDescriptorSets();
-    void CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Image& outImage, vk::raii::DeviceMemory& outImageMemory);
+    void CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels, vk::SampleCountFlagBits numSamples, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Image& outImage, vk::raii::DeviceMemory& outImageMemory);
     vk::raii::CommandBuffer BeginSingleTimeCommands();
     void EndSingleTimeCommands(vk::raii::CommandBuffer& commandBuffer);
     void TransitionImageLayout(const vk::raii::Image& image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout, uint32_t mipLevels);
@@ -140,6 +140,8 @@ private:
     bool HasStencilComponent(vk::Format format);
     void LoadModel();
     void GenerateMipmaps(vk::raii::Image& image, vk::Format imageFormat, int32_t width, int32_t height, uint32_t mipLevels);
+    vk::SampleCountFlagBits GetMaxUsableSampleCount();
+    void CreateColorResources();
 
     uint32_t FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
@@ -188,6 +190,10 @@ private:
     vk::raii::DeviceMemory m_depthImageMemory = nullptr;
     vk::raii::ImageView m_depthImageView = nullptr;
 
+    vk::raii::DeviceMemory m_colorImageMemory = nullptr;
+    vk::raii::Image m_colorImage = nullptr;
+    vk::raii::ImageView m_colorImageView = nullptr;
+
     vk::raii::DescriptorSetLayout m_descriptorSetLayout = nullptr;
     vk::raii::PipelineLayout m_pipelineLayout = nullptr;
     vk::raii::Pipeline m_graphicsPipeline = nullptr;
@@ -233,9 +239,11 @@ private:
     vk::raii::ImageView m_textureImageView = nullptr;
     vk::raii::Sampler m_textureSampler = nullptr;
 
-    bool m_windowResized = false;   
+    bool m_windowResized = false;
 
     std::vector<Vertex> m_vertices;
     std::vector<uint32_t> m_indices;
+
+    vk::SampleCountFlagBits m_msaaSamples = vk::SampleCountFlagBits::e1;
 };
 }
