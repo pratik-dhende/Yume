@@ -54,9 +54,8 @@ void Renderer::ShutDown() {
     m_vertexBuffer = nullptr;
     m_vertexBufferMemory = nullptr;
 
-    m_presentCompleteSemaphores.clear();
     m_inFlightFences.clear();
-    m_renderFinishedSemaphores.clear();
+    m_semaphore = nullptr;
 
     m_commandBuffers.clear();
     m_commandPool = nullptr;
@@ -311,6 +310,19 @@ void Renderer::InitVulkan() {
     CreateGraphicsDescriptorSets();
     CreateCommandBuffers();
     CreateSyncObjects();
+}
+
+void Renderer::RecordComputeCommandBuffer() {
+    auto& commandBuffer = m_commandBuffers[m_frameIndex];
+    commandBuffer.reset();
+
+    commandBuffer.begin({});
+
+    commandBuffer.bindPipeline(vk::PipelineBindPoint::eCompute, m_computePipeline);
+    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute, m_computePipelineLayout, 0, {m_computeDescriptorSets[m_frameIndex]}, {});
+    commandBuffer.dispatch((s_particleCount + 255) / 256, 1, 1);
+
+	commandBuffer.end();
 }
 
 void Renderer::CreateComputeDescriptorSets() {
@@ -726,18 +738,11 @@ void Renderer::TransitionImageLayout(
 }
 
 void Renderer::CreateSyncObjects() {
-    assert(m_presentCompleteSemaphores.empty() && m_renderFinishedSemaphores.empty() && m_inFlightFences.empty());
+    assert(m_inFlightFences.empty());
 
-    for (size_t i = 0; i < static_cast<int>(m_swapChainImages.size()); i++)
-    {
-        m_renderFinishedSemaphores.emplace_back(m_logicalDevice, vk::SemaphoreCreateInfo());
-    }
-
-    for (size_t i = 0; i < s_maxFramesInFlight; i++)
-    {
-        m_presentCompleteSemaphores.emplace_back(m_logicalDevice, vk::SemaphoreCreateInfo());
-        m_inFlightFences.emplace_back(m_logicalDevice, vk::FenceCreateInfo{.flags = vk::FenceCreateFlagBits::eSignaled});
-    }
+    vk::SemaphoreTypeCreateInfo semaphoreType{ .semaphoreType = vk::SemaphoreType::eTimeline, .initialValue = 0 };
+    m_semaphore = vk::raii::Semaphore(m_logicalDevice, {.pNext = &semaphoreType});
+    m_timelineValue = 0;
 }
 
 void Renderer::CleanupSwapChain() {
@@ -758,13 +763,13 @@ void Renderer::HandleResize() {
 }
 
 void Renderer::DrawFrame() {
+    auto [result, imageIndex] = m_swapChain.acquireNextImage(UINT64_MAX, nullptr, *m_inFlightFences[m_frameIndex]);
     auto fenceResult = m_logicalDevice.waitForFences(*m_inFlightFences[m_frameIndex], vk::True, UINT64_MAX);
     if (fenceResult != vk::Result::eSuccess)
     {
         throw std::runtime_error("failed to wait for fence!");
     }
 
-    auto [result, imageIndex] = m_swapChain.acquireNextImage(UINT64_MAX, *m_presentCompleteSemaphores[m_frameIndex], nullptr); // Signal to queue to start 
     if (result == vk::Result::eErrorOutOfDateKHR)
     {
         HandleResize();
@@ -775,57 +780,103 @@ void Renderer::DrawFrame() {
         assert(result == vk::Result::eTimeout || result == vk::Result::eNotReady);
         throw std::runtime_error("failed to acquire swap chain image!");
     }
-    UpdateUniformBuffer(m_frameIndex);
-
     m_logicalDevice.resetFences(*m_inFlightFences[m_frameIndex]);
 
-    m_commandBuffers[m_frameIndex].reset();
-    RecordCommandBuffer(imageIndex);
+    UpdateUniformBuffer(m_frameIndex);
 
-    vk::PipelineStageFlags waitDestinationStageMask( vk::PipelineStageFlagBits::eColorAttachmentOutput );
-    const vk::SubmitInfo submitInfo{.waitSemaphoreCount   = 1,
-                                  .pWaitSemaphores      = &*m_presentCompleteSemaphores[m_frameIndex], // Wait for presentation engine to get the framebuffer
-                                  .pWaitDstStageMask    = &waitDestinationStageMask,
-                                  .commandBufferCount   = 1,
-                                  .pCommandBuffers      = &*m_commandBuffers[m_frameIndex],
-                                  .signalSemaphoreCount = 1,
-                                  .pSignalSemaphores    = &*m_renderFinishedSemaphores[imageIndex]}; // Signal presentation engine for rendering completion
+    // Update timeline value for this frame
+    uint64_t computeWaitValue = m_timelineValue;
+    uint64_t computeSignalValue = ++m_timelineValue;
+    uint64_t graphicsWaitValue = computeSignalValue;
+    uint64_t graphicsSignalValue = ++m_timelineValue;
 
-    m_graphicsComputeQueue.submit(submitInfo, *m_inFlightFences[m_frameIndex]);
-
-    const vk::PresentInfoKHR presentInfoKHR{.waitSemaphoreCount = 1,
-                                            .pWaitSemaphores    = &*m_renderFinishedSemaphores[imageIndex],
-                                            .swapchainCount     = 1,
-                                            .pSwapchains        = &*m_swapChain,
-                                            .pImageIndices      = &imageIndex};
-
-    result = m_graphicsComputeQueue.presentKHR(presentInfoKHR);
-    if ((result == vk::Result::eSuboptimalKHR) || (result == vk::Result::eErrorOutOfDateKHR) || m_windowResized)
     {
-        HandleResize();
-    }
-    else
-    {
-        // There are no other success codes than eSuccess; on any error code, presentKHR already threw an exception.
-        assert(result == vk::Result::eSuccess);
-    }
+        RecordComputeCommandBuffer();
+        vk::TimelineSemaphoreSubmitInfo computeTimelineInfo{
+            .waitSemaphoreValueCount = 1,
+            .pWaitSemaphoreValues = &computeWaitValue,
+            .signalSemaphoreValueCount = 1,
+            .pSignalSemaphoreValues = &computeSignalValue
+        };
 
-    switch (result)
-    {
-        case vk::Result::eSuccess:
-            break;
-        case vk::Result::eSuboptimalKHR:
-            std::cout << "vk::Queue::presentKHR returned vk::Result::eSuboptimalKHR !\n";
-            break;
-        default:
-            break;        // an unexpected result is returned!
-    }
+        vk::PipelineStageFlags waitStages[] = {vk::PipelineStageFlagBits::eComputeShader};
 
-    m_frameIndex = (m_frameIndex + 1) % s_maxFramesInFlight;
+        vk::SubmitInfo computeSubmitInfo{
+            .pNext = &computeTimelineInfo,
+            .waitSemaphoreCount = 1,
+            .pWaitSemaphores = &*m_semaphore,
+            .pWaitDstStageMask = waitStages,
+            .commandBufferCount = 1,
+            .pCommandBuffers = &*m_commandBuffers[m_frameIndex],
+            .signalSemaphoreCount = 1,
+            .pSignalSemaphores = &*m_semaphore
+        };
+        m_graphicsComputeQueue.submit(computeSubmitInfo, nullptr);
+    }
+    {
+        RecordGraphicsCommandBuffer(imageIndex);
+
+        vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eVertexInput;
+
+        vk::TimelineSemaphoreSubmitInfo graphicsTimelineInfo{
+            .waitSemaphoreValueCount = 1,
+            .pWaitSemaphoreValues = &graphicsWaitValue,
+            .signalSemaphoreValueCount = 1,
+            .pSignalSemaphoreValues = &graphicsSignalValue
+        };
+
+        vk::SubmitInfo graphicsSubmitInfo{
+            .pNext = &graphicsTimelineInfo,
+            .waitSemaphoreCount = 1,
+            .pWaitSemaphores = &*m_semaphore,
+            .pWaitDstStageMask = &waitStage,
+            .commandBufferCount = 1,
+            .pCommandBuffers = &*m_commandBuffers[m_frameIndex],
+            .signalSemaphoreCount = 1,
+            .pSignalSemaphores = &*m_semaphore
+        };
+
+        m_graphicsComputeQueue.submit(graphicsSubmitInfo, nullptr);
+
+        vk::SemaphoreWaitInfo waitInfo{
+            .semaphoreCount = 1,
+            .pSemaphores = &*m_semaphore,
+            .pValues = &graphicsSignalValue
+        };
+
+        // Wait for graphics to complete before presenting
+        auto result = m_logicalDevice.waitSemaphores(waitInfo, UINT64_MAX);
+        if (result != vk::Result::eSuccess)
+        {
+            throw std::runtime_error("failed to wait for semaphore!");
+        }
+
+        vk::PresentInfoKHR presentInfo{
+            .waitSemaphoreCount = 0, // No binary semaphores needed
+            .pWaitSemaphores = nullptr,
+            .swapchainCount = 1,
+            .pSwapchains = &*m_swapChain,
+            .pImageIndices = &imageIndex
+        };
+
+        result = m_graphicsComputeQueue.presentKHR(presentInfo);
+        if ((result == vk::Result::eSuboptimalKHR) || (result == vk::Result::eErrorOutOfDateKHR) || m_windowResized)
+        {
+            HandleResize();
+        }
+        else
+        {
+            // There are no other success codes than eSuccess; on any error code, presentKHR already threw an exception.
+            assert(result == vk::Result::eSuccess);
+        }
+
+        m_frameIndex = (m_frameIndex + 1) % s_maxFramesInFlight;
+    }
 }
 
-void Renderer::RecordCommandBuffer(const uint32_t imageIndex) {
+void Renderer::RecordGraphicsCommandBuffer(const uint32_t imageIndex) {
     auto& commandBuffer = m_commandBuffers[m_frameIndex];
+    commandBuffer.reset();
 
     commandBuffer.begin({});
 
@@ -1132,12 +1183,14 @@ void Renderer::CreateLogicalDevice() {
     vk::StructureChain<vk::PhysicalDeviceFeatures2, 
                        vk::PhysicalDeviceVulkan11Features,
                        vk::PhysicalDeviceVulkan13Features, 
-                       vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT> 
+                       vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT,
+                       vk::PhysicalDeviceTimelineSemaphoreFeaturesKHR> 
     featureChain = {
         {.features = { .sampleRateShading = true, .samplerAnisotropy = true} },                 // vk::PhysicalDeviceFeatures2
         {.shaderDrawParameters = true},                              // vk::PhysicalDeviceVulkan11Features
         {.synchronization2 = true, .dynamicRendering = true},        // vk::PhysicalDeviceVulkan13Features
-        {.extendedDynamicState = true}                               // vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
+        {.extendedDynamicState = true},                             // vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
+        {.timelineSemaphore = true}
     };
 
     auto surfaceCapabilities = m_physicalDevice.getSurfaceCapabilitiesKHR( *m_surface );
@@ -1191,13 +1244,15 @@ bool Renderer::IsDeviceSuitable(const vk::raii::PhysicalDevice& physicalDevice) 
         .template getFeatures2<vk::PhysicalDeviceFeatures2, 
                                vk::PhysicalDeviceVulkan11Features, 
                                vk::PhysicalDeviceVulkan13Features, 
-                               vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>();
+                               vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT,
+                               vk::PhysicalDeviceTimelineSemaphoreFeaturesKHR>();
     bool supportsRequiredFeatures = features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering &&
                                     features.template get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState &&
                                     features.template get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters &&
                                     features.template get<vk::PhysicalDeviceVulkan13Features>().synchronization2 &&
                                     features.template get<vk::PhysicalDeviceFeatures2>().features.samplerAnisotropy &&
-                                    features.template get<vk::PhysicalDeviceFeatures2>().features.sampleRateShading;
+                                    features.template get<vk::PhysicalDeviceFeatures2>().features.sampleRateShading &&
+                                    features.template get<vk::PhysicalDeviceTimelineSemaphoreFeaturesKHR>().timelineSemaphore;
 
     // Return true if the physicalDevice meets all the criteria
     return supportsVulkan1_3 && supportsGraphicsAndCompute && supportsAllRequiredExtensions && supportsRequiredFeatures;

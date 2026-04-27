@@ -119,7 +119,7 @@ private:
 	    vk::Flags<vk::PipelineStageFlagBits2> srcStageMask,
 	    vk::Flags<vk::PipelineStageFlagBits2> dstStageMask,
         vk::ImageAspectFlags    imageAspectFlags);
-    void RecordCommandBuffer(const uint32_t imageIndex);
+    void RecordGraphicsCommandBuffer(const uint32_t imageIndex);
     void CreateSyncObjects();
     void HandleResize();
     void CleanupSwapChain();
@@ -154,6 +154,7 @@ private:
     void CreateColorResources();
     void CreateShaderStorageBuffers();
     void CreateComputePipeline();
+    void RecordComputeCommandBuffer();
 
     uint32_t FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
@@ -217,23 +218,13 @@ private:
     vk::raii::CommandPool m_commandPool = nullptr;
     std::vector<vk::raii::CommandBuffer> m_commandBuffers;
 
-    std::vector<vk::raii::Semaphore> m_presentCompleteSemaphores;
+    vk::raii::Semaphore m_semaphore = nullptr;
     std::vector<vk::raii::Fence> m_inFlightFences;
-    std::vector<vk::raii::Semaphore> m_renderFinishedSemaphores;
 
     bool m_enableValidationLayers = false;
 
     uint32_t m_frameIndex = 0;
-
-    // Unused
-    vk::raii::Device m_device = nullptr;
-    vk::Queue m_tmpGraphicsQueue;
-
-    RenderPassManager m_renderPassManager;
-    CullingSystem m_cullingSystem;
-
-    vk::raii::Fence m_fence = nullptr;
-    vk::raii::Semaphore m_imageAvailableSemaphore = nullptr;
+    int m_timelineValue = 0;
 
     vk::raii::Buffer m_vertexBuffer = nullptr;
     vk::raii::DeviceMemory m_vertexBufferMemory = nullptr;
@@ -268,5 +259,15 @@ private:
 
     int m_width;
     int m_height;
+
+    // Unused
+    vk::raii::Device m_device = nullptr;
+    vk::Queue m_tmpGraphicsQueue;
+
+    RenderPassManager m_renderPassManager;
+    CullingSystem m_cullingSystem;
+
+    vk::raii::Fence m_fence = nullptr;
+    vk::raii::Semaphore m_imageAvailableSemaphore = nullptr;
 };
 }
