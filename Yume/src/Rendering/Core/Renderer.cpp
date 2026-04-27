@@ -57,7 +57,8 @@ void Renderer::ShutDown() {
     m_inFlightFences.clear();
     m_semaphore = nullptr;
 
-    m_commandBuffers.clear();
+    m_computeCommandBuffers.clear();
+    m_graphicsCommandBuffers.clear();
     m_commandPool = nullptr;
 
     m_computePipeline = nullptr;
@@ -222,18 +223,8 @@ void Renderer::CreateUniformBuffers() {
 }
 
 void Renderer::UpdateUniformBuffer(const int frameIndex) {
-    static auto startTime = std::chrono::high_resolution_clock::now();
-
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-
     UniformBufferObject ubo{};
-    ubo.model = glm::transpose(rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f)));
-    ubo.view = glm::transpose(lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f)));
-    ubo.proj = glm::transpose(glm::perspective(glm::radians(45.0f), static_cast<float>(m_swapChainExtent.width) / static_cast<float>(m_swapChainExtent.height), 0.1f, 10.0f));
-    ubo.proj[1][1] *= -1;
-
-    memcpy(m_uniformBuffersMapped[frameIndex], &ubo, sizeof(ubo));
+    memcpy(m_uniformBuffersMapped[m_frameIndex], &ubo, sizeof(ubo));
 }
 
 void Renderer::CreateGraphicsDescriptorPool() {
@@ -289,31 +280,35 @@ void Renderer::InitVulkan() {
     SetupDebugMessenger();
     CreateSurface();
     SelectPhysicalDevice();
-    m_msaaSamples = GetMaxUsableSampleCount();
     CreateLogicalDevice();
     CreateSwapChain();
     CreateSwapChainImageViews();
-    CreateColorResources();
-    CreateDepthResources();
-    CreateGraphicsDescriptorSetLayout();
+    CreateComputeDescriptorSetLayout();
     CreateGraphicsPipeline();
+    CreateComputePipeline();
     CreateCommandPool();
-    CreateTextureImage();
-    CreateTextureImageView();
-    CreateTextureSampler();
-    LoadModel();
-    CreateVertexBuffer();
-    CreateIndexBuffer();
-    CreateUniformBuffers();
     CreateShaderStorageBuffers();
-    CreateGraphicsDescriptorPool();
-    CreateGraphicsDescriptorSets();
-    CreateCommandBuffers();
+    CreateUniformBuffers();
+    CreateComputeDescriptorPool();
+    CreateComputeDescriptorSets();
+    CreateGraphicsCommandBuffers();
+    CreateComputeCommandBuffers();
     CreateSyncObjects();
 }
 
+void Renderer::CreateComputeCommandBuffers() {
+    m_computeCommandBuffers.clear();
+
+    vk::CommandBufferAllocateInfo allocInfo{};
+    allocInfo.commandPool = *m_commandPool;
+    allocInfo.level = vk::CommandBufferLevel::ePrimary;
+    allocInfo.commandBufferCount = s_maxFramesInFlight;
+
+    m_computeCommandBuffers = vk::raii::CommandBuffers(m_logicalDevice, allocInfo);
+}
+
 void Renderer::RecordComputeCommandBuffer() {
-    auto& commandBuffer = m_commandBuffers[m_frameIndex];
+    auto& commandBuffer = m_computeCommandBuffers[m_frameIndex];
     commandBuffer.reset();
 
     commandBuffer.begin({});
@@ -371,7 +366,7 @@ void Renderer::CreateComputeDescriptorPool() {
 void Renderer::CreateComputePipeline() {
     constexpr const char* computeShaderEntryPoint = "compMain";
 
-    auto shaderHandle = ServiceLocator::GetService<ResourceManager>().Load<Shader>("shader.slang");
+    auto shaderHandle = ServiceLocator::GetService<ResourceManager>().Load<Shader>("compute.slang");
     auto shaderModule = CreateShaderModule(shaderHandle->GetShaderBytecode());
 
     vk::PipelineShaderStageCreateInfo computeShaderStageInfo{ .stage = vk::ShaderStageFlagBits::eCompute, .module = shaderModule, .pName = computeShaderEntryPoint };
@@ -734,7 +729,7 @@ void Renderer::TransitionImageLayout(
 		    .dependencyFlags         = {},
 		    .imageMemoryBarrierCount = 1,
 		    .pImageMemoryBarriers    = &barrier};
-    m_commandBuffers[m_frameIndex].pipelineBarrier2(dependencyInfo);
+    m_graphicsCommandBuffers[m_frameIndex].pipelineBarrier2(dependencyInfo);
 }
 
 void Renderer::CreateSyncObjects() {
@@ -743,6 +738,12 @@ void Renderer::CreateSyncObjects() {
     vk::SemaphoreTypeCreateInfo semaphoreType{ .semaphoreType = vk::SemaphoreType::eTimeline, .initialValue = 0 };
     m_semaphore = vk::raii::Semaphore(m_logicalDevice, {.pNext = &semaphoreType});
     m_timelineValue = 0;
+
+    for (size_t i = 0; i < s_maxFramesInFlight; i++)
+    {
+        vk::FenceCreateInfo fenceInfo{};
+        m_inFlightFences.emplace_back(m_logicalDevice, fenceInfo);
+    }
 }
 
 void Renderer::CleanupSwapChain() {
@@ -758,8 +759,8 @@ void Renderer::HandleResize() {
 
     CreateSwapChain();
     CreateSwapChainImageViews();
-    CreateColorResources();
-    CreateDepthResources();
+    //CreateColorResources();
+    //DepthResources();
 }
 
 void Renderer::DrawFrame() {
@@ -807,7 +808,7 @@ void Renderer::DrawFrame() {
             .pWaitSemaphores = &*m_semaphore,
             .pWaitDstStageMask = waitStages,
             .commandBufferCount = 1,
-            .pCommandBuffers = &*m_commandBuffers[m_frameIndex],
+            .pCommandBuffers = &*m_computeCommandBuffers[m_frameIndex],
             .signalSemaphoreCount = 1,
             .pSignalSemaphores = &*m_semaphore
         };
@@ -831,7 +832,7 @@ void Renderer::DrawFrame() {
             .pWaitSemaphores = &*m_semaphore,
             .pWaitDstStageMask = &waitStage,
             .commandBufferCount = 1,
-            .pCommandBuffers = &*m_commandBuffers[m_frameIndex],
+            .pCommandBuffers = &*m_graphicsCommandBuffers[m_frameIndex],
             .signalSemaphoreCount = 1,
             .pSignalSemaphores = &*m_semaphore
         };
@@ -875,7 +876,7 @@ void Renderer::DrawFrame() {
 }
 
 void Renderer::RecordGraphicsCommandBuffer(const uint32_t imageIndex) {
-    auto& commandBuffer = m_commandBuffers[m_frameIndex];
+    auto& commandBuffer = m_graphicsCommandBuffers[m_frameIndex];
     commandBuffer.reset();
 
     commandBuffer.begin({});
@@ -893,54 +894,21 @@ void Renderer::RecordGraphicsCommandBuffer(const uint32_t imageIndex) {
         vk::ImageAspectFlagBits::eColor
     );
 
-    TransitionImageLayout(
-        *m_colorImage,
-        vk::ImageLayout::eUndefined,
-        vk::ImageLayout::eColorAttachmentOptimal,
-        vk::AccessFlagBits2::eColorAttachmentWrite,
-        vk::AccessFlagBits2::eColorAttachmentWrite,
-        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-        vk::ImageAspectFlagBits::eColor);
-
-    TransitionImageLayout(
-        *m_depthImage,
-        vk::ImageLayout::eUndefined,
-        vk::ImageLayout::eDepthAttachmentOptimal,
-        vk::AccessFlagBits2::eDepthStencilAttachmentWrite,
-        vk::AccessFlagBits2::eDepthStencilAttachmentWrite,
-        vk::PipelineStageFlagBits2::eEarlyFragmentTests | vk::PipelineStageFlagBits2::eLateFragmentTests,
-        vk::PipelineStageFlagBits2::eEarlyFragmentTests | vk::PipelineStageFlagBits2::eLateFragmentTests,
-        vk::ImageAspectFlagBits::eDepth
-    );
-
     // Set up the color attachment
     vk::ClearValue clearColor = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f);
-    vk::ClearValue clearDepth = vk::ClearDepthStencilValue(1.0f, 0);
-    vk::RenderingAttachmentInfo colorAttachmentInfo = {
-		    .imageView   = m_colorImageView,
+    vk::RenderingAttachmentInfo attachmentInfo = {
+		    .imageView   = m_swapChainImageViews[imageIndex],
 		    .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
-            .resolveMode = vk::ResolveModeFlagBits::eAverage,
-            .resolveImageView = m_swapChainImageViews[imageIndex],
-            .resolveImageLayout = vk::ImageLayout::eColorAttachmentOptimal,
 		    .loadOp      = vk::AttachmentLoadOp::eClear,
 		    .storeOp     = vk::AttachmentStoreOp::eStore,
 		    .clearValue  = clearColor};
-
-    vk::RenderingAttachmentInfo depthAttachmentInfo = {
-            .imageView   = m_depthImageView,
-            .imageLayout = vk::ImageLayout::eDepthAttachmentOptimal,
-            .loadOp      = vk::AttachmentLoadOp::eClear,
-            .storeOp     = vk::AttachmentStoreOp::eDontCare,
-            .clearValue  = clearDepth};
 
     // Set up the rendering info
     vk::RenderingInfo renderingInfo = {
 		    .renderArea           = {.offset = {0, 0}, .extent = m_swapChainExtent},
 		    .layerCount           = 1,
 		    .colorAttachmentCount = 1,
-		    .pColorAttachments    = &colorAttachmentInfo,
-            .pDepthAttachment     = &depthAttachmentInfo};
+		    .pColorAttachments    = &attachmentInfo};
 
     // Begin rendering
     commandBuffer.beginRendering(renderingInfo);
@@ -951,11 +919,9 @@ void Renderer::RecordGraphicsCommandBuffer(const uint32_t imageIndex) {
     commandBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(m_swapChainExtent.width), static_cast<float>(m_swapChainExtent.height), 0.0f, 1.0f));
     commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), m_swapChainExtent));
 
-    commandBuffer.bindVertexBuffers(0, *m_vertexBuffer, {0});
-    commandBuffer.bindIndexBuffer( *m_indexBuffer, 0, vk::IndexType::eUint32 );
+    commandBuffer.bindVertexBuffers(0, {m_shaderStorageBuffers[m_frameIndex]}, {0});
 
-    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_graphicsPipelineLayout, 0, *m_graphicsDescriptorSets[m_frameIndex], nullptr);
-    commandBuffer.drawIndexed(m_indices.size(), 1, 0, 0, 0);;
+    commandBuffer.draw(s_particleCount, 1, 0, 0);
 
     // End rendering
     commandBuffer.endRendering();
@@ -976,10 +942,10 @@ void Renderer::RecordGraphicsCommandBuffer(const uint32_t imageIndex) {
 
 }
 
-void Renderer::CreateCommandBuffers() {
+void Renderer::CreateGraphicsCommandBuffers() {
     vk::CommandBufferAllocateInfo allocInfo{ .commandPool = m_commandPool, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = s_maxFramesInFlight };
 
-    m_commandBuffers = std::move(vk::raii::CommandBuffers(m_logicalDevice, allocInfo));
+    m_graphicsCommandBuffers = std::move(vk::raii::CommandBuffers(m_logicalDevice, allocInfo));
 }
 
 void Renderer::CreateCommandPool() {
@@ -994,7 +960,7 @@ void Renderer::CreateGraphicsPipeline() {
     constexpr const char* vertexShaderEntryPoint = "vertMain";
     constexpr const char* fragmentShaderEntryPoint = "fragMain";
 
-    auto shaderHandle = ServiceLocator::GetService<ResourceManager>().Load<Shader>("shader.slang");
+    auto shaderHandle = ServiceLocator::GetService<ResourceManager>().Load<Shader>("compute.slang");
     auto shaderModule = CreateShaderModule(shaderHandle->GetShaderBytecode());
 
     vk::PipelineShaderStageCreateInfo vertShaderStageInfo{ .stage = vk::ShaderStageFlagBits::eVertex, .module = shaderModule,  .pName = vertexShaderEntryPoint };
@@ -1003,14 +969,14 @@ void Renderer::CreateGraphicsPipeline() {
     vk::PipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
     // Fixed functions
-    auto bindingDescription = Vertex::getBindingDescription();
-    auto attributeDescriptions = Vertex::getAttributeDescriptions();
+    auto bindingDescription = Particle::getBindingDescription();
+    auto attributeDescriptions = Particle::getAttributeDescriptions();
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo{.vertexBindingDescriptionCount   = 1,
                                                            .pVertexBindingDescriptions      = &bindingDescription,
                                                            .vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size()),
                                                            .pVertexAttributeDescriptions    = attributeDescriptions.data()};
 
-    vk::PipelineInputAssemblyStateCreateInfo inputAssembly{.topology = vk::PrimitiveTopology::eTriangleList};
+    vk::PipelineInputAssemblyStateCreateInfo inputAssembly{.topology = vk::PrimitiveTopology::ePointList};
     vk::PipelineViewportStateCreateInfo viewportState{.viewportCount = 1, .scissorCount = 1};
 
     vk::PipelineRasterizationStateCreateInfo rasterizer{.depthClampEnable        = vk::False,
@@ -1021,28 +987,29 @@ void Renderer::CreateGraphicsPipeline() {
                                                         .depthBiasEnable         = vk::False,
                                                         .lineWidth               = 1.0f};
 
-    vk::PipelineMultisampleStateCreateInfo multisampling{.rasterizationSamples = m_msaaSamples, .sampleShadingEnable = vk::True, .minSampleShading = 0.2f}; // min fraction for sample shading; closer to one is smoother
+    vk::PipelineMultisampleStateCreateInfo multisampling{.rasterizationSamples = vk::SampleCountFlagBits::e1 }; // min fraction for sample shading; closer to one is smoother
 
 
-    vk::PipelineColorBlendAttachmentState colorBlendAttachment{ .blendEnable = vk::False,
-                                                                .colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA};
+    vk::PipelineColorBlendAttachmentState colorBlendAttachment{
+        .blendEnable         = vk::True,
+        .srcColorBlendFactor = vk::BlendFactor::eSrcAlpha,
+        .dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha,
+        .colorBlendOp        = vk::BlendOp::eAdd,
+        .srcAlphaBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha,
+        .dstAlphaBlendFactor = vk::BlendFactor::eZero,
+        .alphaBlendOp        = vk::BlendOp::eAdd,
+        .colorWriteMask      = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA,
+    };
 
     vk::PipelineColorBlendStateCreateInfo colorBlending{.logicOpEnable = vk::False, .logicOp = vk::LogicOp::eCopy, .attachmentCount = 1, .pAttachments = &colorBlendAttachment};
 
     std::vector<vk::DynamicState> dynamicStates = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
     vk::PipelineDynamicStateCreateInfo dynamicState{.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()), .pDynamicStates = dynamicStates.data()};
 
-    vk::PipelineLayoutCreateInfo pipelineLayoutInfo{.setLayoutCount = 1, .pSetLayouts = &*m_graphicsDescriptorSetLayout, .pushConstantRangeCount = 0};
+    vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
     m_graphicsPipelineLayout = vk::raii::PipelineLayout(m_logicalDevice, pipelineLayoutInfo);
 
-    vk::PipelineRenderingCreateInfo pipelineRenderingCreateInfo{ .colorAttachmentCount = 1, .pColorAttachmentFormats = &m_swapChainSurfaceFormat.format, .depthAttachmentFormat = m_depthFormat };
-
-    vk::PipelineDepthStencilStateCreateInfo depthStencil{
-    .depthTestEnable       = vk::True,
-    .depthWriteEnable      = vk::True,
-    .depthCompareOp        = vk::CompareOp::eLess,
-    .depthBoundsTestEnable = vk::False,
-    .stencilTestEnable     = vk::False};
+    vk::PipelineRenderingCreateInfo pipelineRenderingCreateInfo{ .colorAttachmentCount = 1, .pColorAttachmentFormats = &m_swapChainSurfaceFormat.format};
 
     vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo> pipelineCreateInfoChain = {
     {   .stageCount          = 2,
@@ -1052,7 +1019,6 @@ void Renderer::CreateGraphicsPipeline() {
         .pViewportState      = &viewportState,
         .pRasterizationState = &rasterizer,
         .pMultisampleState   = &multisampling,
-        .pDepthStencilState  = &depthStencil,
         .pColorBlendState    = &colorBlending,
         .pDynamicState       = &dynamicState,
         .layout              = m_graphicsPipelineLayout,

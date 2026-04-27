@@ -17,10 +17,14 @@ import vulkan_hpp;
 
 namespace Yume {
 
-struct UniformBufferObject {
+struct UniformBufferObjectMVP {
     alignas(16) glm::mat4 model;
     alignas(16) glm::mat4 view;
     alignas(16) glm::mat4 proj;
+};
+
+struct UniformBufferObject {
+    float deltaTime = 1.0f;
 };
 
 struct Vertex
@@ -65,6 +69,18 @@ struct Particle {
     glm::vec2 position;
     glm::vec2 velocity;
     glm::vec4 color;
+
+    static vk::VertexInputBindingDescription getBindingDescription()
+	{
+		return {0, sizeof(Particle), vk::VertexInputRate::eVertex};
+	}
+
+    static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions() {
+        return {
+            vk::VertexInputAttributeDescription( 0, 0, vk::Format::eR32G32Sfloat, offsetof(Particle, position) ),
+            vk::VertexInputAttributeDescription( 1, 0, vk::Format::eR32G32B32A32Sfloat, offsetof(Particle, color) ),
+        };
+    }
 };
 
 class Renderer : public EventListener {
@@ -92,7 +108,7 @@ private:
     static const std::vector<char const*> s_validationLayers;
     static const std::vector<const char*> s_requiredDeviceExtensions;
     static constexpr int s_maxFramesInFlight = 2;
-    static constexpr int s_particleCount = 1;
+    static constexpr int s_particleCount = 8192;
     static VKAPI_ATTR vk::Bool32 VKAPI_CALL DebugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT severity, vk::DebugUtilsMessageTypeFlagsEXT type, const vk::DebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
 
 private:
@@ -109,7 +125,7 @@ private:
     void CreateSwapChainImageViews();
     void CreateGraphicsPipeline();
     void CreateCommandPool();
-    void CreateCommandBuffers();
+    void CreateGraphicsCommandBuffers();
     void TransitionImageLayout(
 	    vk::Image               image,
 	    vk::ImageLayout         oldLayout,
@@ -155,6 +171,7 @@ private:
     void CreateShaderStorageBuffers();
     void CreateComputePipeline();
     void RecordComputeCommandBuffer();
+    void CreateComputeCommandBuffers();
 
     uint32_t FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
@@ -216,7 +233,8 @@ private:
     vk::raii::Pipeline m_computePipeline = nullptr;
 
     vk::raii::CommandPool m_commandPool = nullptr;
-    std::vector<vk::raii::CommandBuffer> m_commandBuffers;
+    std::vector<vk::raii::CommandBuffer> m_graphicsCommandBuffers;
+    std::vector<vk::raii::CommandBuffer> m_computeCommandBuffers;
 
     vk::raii::Semaphore m_semaphore = nullptr;
     std::vector<vk::raii::Fence> m_inFlightFences;
