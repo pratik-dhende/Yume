@@ -6,6 +6,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <chrono>
 #include <stb_image.h>
+#include <random>
+#include <ctime>
 
 #include "Renderer.h"
 #include "Rendering/Resources/Shader.h"
@@ -35,8 +37,12 @@ void Renderer::ShutDown() {
     m_textureImageMemory = nullptr;
     m_textureImage = nullptr;
 
-    m_descriptorSets.clear();
+    m_computeDescriptorSets.clear();
+    m_graphicsDescriptorSets.clear();
     m_descriptorPool = nullptr;
+
+    m_shaderStorageBuffers.clear();
+    m_shaderStorageBuffersMemory.clear();
 
     m_uniformBuffers.clear();
     m_uniformBuffersMemory.clear();
@@ -55,9 +61,13 @@ void Renderer::ShutDown() {
     m_commandBuffers.clear();
     m_commandPool = nullptr;
 
+    m_computePipeline = nullptr;
+    m_computePipelineLayout = nullptr;
+    m_computeDescriptorSetLayout = nullptr;
+
     m_graphicsPipeline = nullptr;
-    m_pipelineLayout = nullptr;
-    m_descriptorSetLayout = nullptr;
+    m_graphicsPipelineLayout = nullptr;
+    m_graphicsDescriptorSetLayout = nullptr;
 
     m_depthImageView = nullptr;
     m_depthImageMemory = nullptr;
@@ -70,7 +80,7 @@ void Renderer::ShutDown() {
 
     CleanupSwapChain();
 
-    m_graphicsQueue = nullptr;
+    m_graphicsComputeQueue = nullptr;
     m_logicalDevice = nullptr;
     m_physicalDevice = nullptr;
 
@@ -227,34 +237,34 @@ void Renderer::UpdateUniformBuffer(const int frameIndex) {
     memcpy(m_uniformBuffersMapped[frameIndex], &ubo, sizeof(ubo));
 }
 
-void Renderer::CreateDescriptorPool() {
+void Renderer::CreateGraphicsDescriptorPool() {
     std::array poolSize {
         vk::DescriptorPoolSize( vk::DescriptorType::eUniformBuffer, s_maxFramesInFlight),
-        vk::DescriptorPoolSize(  vk::DescriptorType::eCombinedImageSampler, s_maxFramesInFlight)
+        vk::DescriptorPoolSize( vk::DescriptorType::eCombinedImageSampler, s_maxFramesInFlight),
     };
+
     vk::DescriptorPoolCreateInfo poolInfo{.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, .maxSets = s_maxFramesInFlight, .poolSizeCount = static_cast<uint32_t>(poolSize.size()), .pPoolSizes = poolSize.data() };
 
     m_descriptorPool = vk::raii::DescriptorPool(m_logicalDevice, poolInfo);
-    m_descriptorSets.clear();
+    m_graphicsDescriptorSets.clear();
 }
 
-void Renderer::CreateDescriptorSets() {
-    std::vector<vk::DescriptorSetLayout> layouts(s_maxFramesInFlight, *m_descriptorSetLayout);
-    vk::DescriptorSetAllocateInfo allocInfo{ .descriptorPool = m_descriptorPool, .descriptorSetCount = static_cast<uint32_t>(layouts.size()), .pSetLayouts = layouts.data() };
+void Renderer::CreateGraphicsDescriptorSets() {
+    std::vector<vk::DescriptorSetLayout> graphicsLayouts(s_maxFramesInFlight, *m_graphicsDescriptorSetLayout);
+    vk::DescriptorSetAllocateInfo graphicsAllocInfo{ .descriptorPool = m_descriptorPool, .descriptorSetCount = static_cast<uint32_t>(graphicsLayouts.size()), .pSetLayouts = graphicsLayouts.data() };
 
-    m_descriptorSets = m_logicalDevice.allocateDescriptorSets(allocInfo);
+    m_graphicsDescriptorSets = m_logicalDevice.allocateDescriptorSets(graphicsAllocInfo);
 
     for (size_t i = 0; i < s_maxFramesInFlight; i++) {
         vk::DescriptorBufferInfo bufferInfo{ .buffer = m_uniformBuffers[i], .offset = 0, .range = sizeof(UniformBufferObject) };
         vk::DescriptorImageInfo imageInfo{ .sampler = m_textureSampler, .imageView = m_textureImageView, .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal};
 
-        std::array descriptorWrites{
-            vk::WriteDescriptorSet{ .dstSet = m_descriptorSets[i], .dstBinding = 0, .dstArrayElement = 0, .descriptorCount = 1,
-                .descriptorType = vk::DescriptorType::eUniformBuffer, .pBufferInfo = &bufferInfo },
-            vk::WriteDescriptorSet{ .dstSet = m_descriptorSets[i], .dstBinding = 1, .dstArrayElement = 0, .descriptorCount = 1,
-                .descriptorType = vk::DescriptorType::eCombinedImageSampler, .pImageInfo = &imageInfo }
+        std::array desciptorWrites{
+            vk::WriteDescriptorSet{ .dstSet = m_graphicsDescriptorSets[i], .dstBinding = 0, .dstArrayElement = 0, .descriptorCount = 1, .descriptorType = vk::DescriptorType::eUniformBuffer, .pBufferInfo = &bufferInfo },
+            vk::WriteDescriptorSet{ .dstSet = m_graphicsDescriptorSets[i], .dstBinding = 1, .dstArrayElement = 0, .descriptorCount = 1, .descriptorType = vk::DescriptorType::eCombinedImageSampler, .pImageInfo = &imageInfo }
         };
-        m_logicalDevice.updateDescriptorSets(descriptorWrites, {});
+
+        m_logicalDevice.updateDescriptorSets(desciptorWrites, {});
     }
 }
 
@@ -286,7 +296,7 @@ void Renderer::InitVulkan() {
     CreateSwapChainImageViews();
     CreateColorResources();
     CreateDepthResources();
-    CreateDescriptorSetLayout();
+    CreateGraphicsDescriptorSetLayout();
     CreateGraphicsPipeline();
     CreateCommandPool();
     CreateTextureImage();
@@ -296,10 +306,113 @@ void Renderer::InitVulkan() {
     CreateVertexBuffer();
     CreateIndexBuffer();
     CreateUniformBuffers();
-    CreateDescriptorPool();
-    CreateDescriptorSets();
+    CreateShaderStorageBuffers();
+    CreateGraphicsDescriptorPool();
+    CreateGraphicsDescriptorSets();
     CreateCommandBuffers();
     CreateSyncObjects();
+}
+
+void Renderer::CreateComputeDescriptorSets() {
+    std::vector<vk::DescriptorSetLayout> computeLayouts(s_maxFramesInFlight, *m_computeDescriptorSetLayout);
+    vk::DescriptorSetAllocateInfo computeAllocInfo{ .descriptorPool = m_descriptorPool, .descriptorSetCount = static_cast<uint32_t>(computeLayouts.size()), .pSetLayouts = computeLayouts.data() };
+
+    m_computeDescriptorSets = m_logicalDevice.allocateDescriptorSets(computeAllocInfo);
+
+    for (size_t i = 0; i < s_maxFramesInFlight; i++) {
+        vk::DescriptorBufferInfo bufferInfo{ .buffer = m_uniformBuffers[i], .offset = 0, .range = sizeof(UniformBufferObject) };        
+        vk::DescriptorBufferInfo storageBufferInfoLastFrame(m_shaderStorageBuffers[(i - 1) % s_maxFramesInFlight], 0, sizeof(Particle) * s_particleCount);
+        vk::DescriptorBufferInfo storageBufferInfoCurrentFrame(m_shaderStorageBuffers[i], 0, sizeof(Particle) * s_particleCount);
+
+        std::array desciptorWrites{
+            vk::WriteDescriptorSet{ .dstSet = m_computeDescriptorSets[i], .dstBinding = 0, .dstArrayElement = 0, .descriptorCount = 1, .descriptorType = vk::DescriptorType::eUniformBuffer, .pBufferInfo = &bufferInfo },
+            vk::WriteDescriptorSet{ .dstSet = m_computeDescriptorSets[i], .dstBinding = 1, .dstArrayElement = 0, .descriptorCount = 1, .descriptorType = vk::DescriptorType::eStorageBuffer, .pBufferInfo = &storageBufferInfoLastFrame },
+            vk::WriteDescriptorSet{ .dstSet = m_computeDescriptorSets[i], .dstBinding = 2, .dstArrayElement = 0, .descriptorCount = 1, .descriptorType = vk::DescriptorType::eStorageBuffer, .pBufferInfo = &storageBufferInfoCurrentFrame },
+        };
+
+        m_logicalDevice.updateDescriptorSets(desciptorWrites, {});
+    }   
+}
+
+void Renderer::CreateComputeDescriptorSetLayout() {
+    std::array computeBindings{
+        vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eCompute, nullptr),
+        vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute, nullptr),
+        vk::DescriptorSetLayoutBinding(2, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute, nullptr),
+    };
+    vk::DescriptorSetLayoutCreateInfo computeLayoutInfo{.bindingCount = static_cast<uint32_t>(computeBindings.size()), .pBindings = computeBindings.data()};
+    m_computeDescriptorSetLayout = vk::raii::DescriptorSetLayout(m_logicalDevice, computeLayoutInfo);
+}
+
+void Renderer::CreateComputeDescriptorPool() {
+   std::array poolSize {
+        vk::DescriptorPoolSize( vk::DescriptorType::eUniformBuffer, s_maxFramesInFlight),
+        vk::DescriptorPoolSize( vk::DescriptorType::eStorageBuffer, s_maxFramesInFlight * 2),
+    };
+
+    vk::DescriptorPoolCreateInfo poolInfo{.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, .maxSets = s_maxFramesInFlight, .poolSizeCount = static_cast<uint32_t>(poolSize.size()), .pPoolSizes = poolSize.data() };
+
+    m_descriptorPool = vk::raii::DescriptorPool(m_logicalDevice, poolInfo);
+    m_computeDescriptorSets.clear();
+}
+
+void Renderer::CreateComputePipeline() {
+    constexpr const char* computeShaderEntryPoint = "compMain";
+
+    auto shaderHandle = ServiceLocator::GetService<ResourceManager>().Load<Shader>("shader.slang");
+    auto shaderModule = CreateShaderModule(shaderHandle->GetShaderBytecode());
+
+    vk::PipelineShaderStageCreateInfo computeShaderStageInfo{ .stage = vk::ShaderStageFlagBits::eCompute, .module = shaderModule, .pName = computeShaderEntryPoint };
+
+    vk::PipelineLayoutCreateInfo pipelineLayoutInfo{.setLayoutCount = 1, .pSetLayouts = &*m_computeDescriptorSetLayout};
+    m_computePipelineLayout = vk::raii::PipelineLayout(m_logicalDevice, pipelineLayoutInfo);
+
+    vk::ComputePipelineCreateInfo pipelineInfo{.stage = computeShaderStageInfo, .layout = *m_computePipelineLayout};
+    m_computePipeline = vk::raii::Pipeline(m_logicalDevice, nullptr, pipelineInfo);
+}
+
+void Renderer::CreateShaderStorageBuffers() {
+    m_shaderStorageBuffers.clear();
+    m_shaderStorageBuffersMemory.clear();
+
+    // Initialize particles
+    std::default_random_engine rndEngine((unsigned)time(nullptr));
+    std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
+
+    // Initial particle positions on a circle
+    std::vector<Particle> particles(s_particleCount);
+    for (auto& particle : particles) {
+        float r = 0.25f * sqrtf(rndDist(rndEngine));
+        float theta = rndDist(rndEngine) * 2.0f * 3.14159265358979323846f;
+        float x = r * cosf(theta) * m_height / m_width;
+        float y = r * sinf(theta);
+        particle.position = glm::vec2(x, y);
+        particle.velocity = normalize(glm::vec2(x,y)) * 0.00025f;
+        particle.color = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 1.0f);
+    }
+
+    vk::DeviceSize bufferSize = sizeof(Particle) * s_particleCount;
+
+    // Create a staging buffer used to upload data to the gpu
+    vk::raii::Buffer stagingBuffer({});
+    vk::raii::DeviceMemory stagingBufferMemory({});
+    CreateBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, stagingBuffer, stagingBufferMemory);
+
+    void* dataStaging = stagingBufferMemory.mapMemory(0, bufferSize);
+    memcpy(dataStaging, particles.data(), (size_t)bufferSize);
+    stagingBufferMemory.unmapMemory();
+
+    // Copy initial particle data to all storage buffers
+    for (size_t i = 0; i < s_maxFramesInFlight; i++) {
+        vk::raii::Buffer tempShaderStorageBuffer({});
+        vk::raii::DeviceMemory tempShaderStorageBufferMemory({});
+
+        CreateBuffer(bufferSize, vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst, vk::MemoryPropertyFlagBits::eDeviceLocal, tempShaderStorageBuffer, tempShaderStorageBufferMemory);
+        CopyBuffer(stagingBuffer, tempShaderStorageBuffer, bufferSize);
+
+        m_shaderStorageBuffers.emplace_back(std::move(tempShaderStorageBuffer));
+        m_shaderStorageBuffersMemory.emplace_back(std::move(tempShaderStorageBufferMemory));
+    }
 }
 
 void Renderer::CreateColorResources() {
@@ -525,8 +638,8 @@ void Renderer::EndSingleTimeCommands(vk::raii::CommandBuffer& commandBuffer) {
     commandBuffer.end();
 
     vk::SubmitInfo submitInfo{ .commandBufferCount = 1, .pCommandBuffers = &*commandBuffer };
-    m_graphicsQueue.submit(submitInfo, nullptr);
-    m_graphicsQueue.waitIdle();
+    m_graphicsComputeQueue.submit(submitInfo, nullptr);
+    m_graphicsComputeQueue.waitIdle();
 }
 
 void Renderer::CreateImage(uint32_t width, uint32_t height, uint32_t mipLevels, vk::SampleCountFlagBits numSamples, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Image& outImage, vk::raii::DeviceMemory& outImageMemory) {
@@ -570,13 +683,13 @@ void Renderer::CreateTextureImage() {
     GenerateMipmaps(m_textureImage, vk::Format::eR8G8B8A8Srgb, width, height, m_mipLevels);
 }
 
-void Renderer::CreateDescriptorSetLayout() {
-    std::array bindings = {
-        vk::DescriptorSetLayoutBinding( 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex, nullptr),
-        vk::DescriptorSetLayoutBinding( 1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, nullptr)
+void Renderer::CreateGraphicsDescriptorSetLayout() {
+    std::array graphicsBindings{
+        vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex, nullptr),
+        vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, nullptr),
     };
-    vk::DescriptorSetLayoutCreateInfo layoutInfo{.bindingCount = static_cast<uint32_t>(bindings.size()), .pBindings = bindings.data()};
-    m_descriptorSetLayout = vk::raii::DescriptorSetLayout(m_logicalDevice, layoutInfo);
+    vk::DescriptorSetLayoutCreateInfo graphicsLayoutInfo{.bindingCount = static_cast<uint32_t>(graphicsBindings.size()), .pBindings = graphicsBindings.data()};
+    m_graphicsDescriptorSetLayout = vk::raii::DescriptorSetLayout(m_logicalDevice, graphicsLayoutInfo);
 }
 
 void Renderer::TransitionImageLayout(
@@ -678,7 +791,7 @@ void Renderer::DrawFrame() {
                                   .signalSemaphoreCount = 1,
                                   .pSignalSemaphores    = &*m_renderFinishedSemaphores[imageIndex]}; // Signal presentation engine for rendering completion
 
-    m_graphicsQueue.submit(submitInfo, *m_inFlightFences[m_frameIndex]);
+    m_graphicsComputeQueue.submit(submitInfo, *m_inFlightFences[m_frameIndex]);
 
     const vk::PresentInfoKHR presentInfoKHR{.waitSemaphoreCount = 1,
                                             .pWaitSemaphores    = &*m_renderFinishedSemaphores[imageIndex],
@@ -686,7 +799,7 @@ void Renderer::DrawFrame() {
                                             .pSwapchains        = &*m_swapChain,
                                             .pImageIndices      = &imageIndex};
 
-    result = m_graphicsQueue.presentKHR(presentInfoKHR);
+    result = m_graphicsComputeQueue.presentKHR(presentInfoKHR);
     if ((result == vk::Result::eSuboptimalKHR) || (result == vk::Result::eErrorOutOfDateKHR) || m_windowResized)
     {
         HandleResize();
@@ -790,7 +903,7 @@ void Renderer::RecordCommandBuffer(const uint32_t imageIndex) {
     commandBuffer.bindVertexBuffers(0, *m_vertexBuffer, {0});
     commandBuffer.bindIndexBuffer( *m_indexBuffer, 0, vk::IndexType::eUint32 );
 
-    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_pipelineLayout, 0, *m_descriptorSets[m_frameIndex], nullptr);
+    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, m_graphicsPipelineLayout, 0, *m_graphicsDescriptorSets[m_frameIndex], nullptr);
     commandBuffer.drawIndexed(m_indices.size(), 1, 0, 0, 0);;
 
     // End rendering
@@ -820,7 +933,7 @@ void Renderer::CreateCommandBuffers() {
 
 void Renderer::CreateCommandPool() {
     vk::CommandPoolCreateInfo poolInfo{.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-                                       .queueFamilyIndex = 0};
+                                       .queueFamilyIndex = m_graphicsComputeQueueIndex};
 
     m_commandPool = vk::raii::CommandPool(m_logicalDevice, poolInfo);
 }
@@ -868,8 +981,8 @@ void Renderer::CreateGraphicsPipeline() {
     std::vector<vk::DynamicState> dynamicStates = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
     vk::PipelineDynamicStateCreateInfo dynamicState{.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()), .pDynamicStates = dynamicStates.data()};
 
-    vk::PipelineLayoutCreateInfo pipelineLayoutInfo{.setLayoutCount = 1, .pSetLayouts = &*m_descriptorSetLayout, .pushConstantRangeCount = 0};
-    m_pipelineLayout = vk::raii::PipelineLayout(m_logicalDevice, pipelineLayoutInfo);
+    vk::PipelineLayoutCreateInfo pipelineLayoutInfo{.setLayoutCount = 1, .pSetLayouts = &*m_graphicsDescriptorSetLayout, .pushConstantRangeCount = 0};
+    m_graphicsPipelineLayout = vk::raii::PipelineLayout(m_logicalDevice, pipelineLayoutInfo);
 
     vk::PipelineRenderingCreateInfo pipelineRenderingCreateInfo{ .colorAttachmentCount = 1, .pColorAttachmentFormats = &m_swapChainSurfaceFormat.format, .depthAttachmentFormat = m_depthFormat };
 
@@ -891,7 +1004,7 @@ void Renderer::CreateGraphicsPipeline() {
         .pDepthStencilState  = &depthStencil,
         .pColorBlendState    = &colorBlending,
         .pDynamicState       = &dynamicState,
-        .layout              = m_pipelineLayout,
+        .layout              = m_graphicsPipelineLayout,
         .renderPass          = nullptr,},
         pipelineRenderingCreateInfo};
 
@@ -985,12 +1098,11 @@ vk::Extent2D Renderer::ChooseSwapExtent(vk::SurfaceCapabilitiesKHR const &capabi
         return capabilities.currentExtent;
     }
 
-    int width, height;
-    glfwGetFramebufferSize(m_window, &width, &height);
+    glfwGetFramebufferSize(m_window, &m_width, &m_height);
 
     return {
-        std::clamp<uint32_t>(width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
-        std::clamp<uint32_t>(height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height)
+        std::clamp<uint32_t>(m_width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
+        std::clamp<uint32_t>(m_height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height)
     };
 }
 
@@ -998,24 +1110,23 @@ void Renderer::CreateLogicalDevice() {
     std::vector<vk::QueueFamilyProperties> queueFamilyProperties = m_physicalDevice.getQueueFamilyProperties();
 
     // get the first index into queueFamilyProperties which supports both graphics and present
-    uint32_t queueIndex = ~0;
     for (uint32_t qfpIndex = 0; qfpIndex < queueFamilyProperties.size(); qfpIndex++)
     {
-        if ((queueFamilyProperties[qfpIndex].queueFlags & vk::QueueFlagBits::eGraphics) &&
+        if ((queueFamilyProperties[qfpIndex].queueFlags & vk::QueueFlagBits::eGraphics) && ((queueFamilyProperties[qfpIndex].queueFlags & vk::QueueFlagBits::eCompute)) && 
             m_physicalDevice.getSurfaceSupportKHR(qfpIndex, *m_surface))
         {
             // found a queue family that supports both graphics and present
-            queueIndex = qfpIndex;
+            m_graphicsComputeQueueIndex = qfpIndex;
             break;
         }
     }
-    if (queueIndex == ~0)
+    if (m_graphicsComputeQueueIndex == ~0)
     {
         throw std::runtime_error("Could not find a queue for graphics and present -> terminating");
     }
     
     float queuePriority = 0.5f;
-    vk::DeviceQueueCreateInfo deviceQueueCreateInfo { .queueFamilyIndex = queueIndex, .queueCount = 1, .pQueuePriorities = &queuePriority };
+    vk::DeviceQueueCreateInfo deviceQueueCreateInfo { .queueFamilyIndex = m_graphicsComputeQueueIndex, .queueCount = 1, .pQueuePriorities = &queuePriority };
 
     // Create a chain of feature structures
     vk::StructureChain<vk::PhysicalDeviceFeatures2, 
@@ -1042,7 +1153,7 @@ void Renderer::CreateLogicalDevice() {
     };
 
     m_logicalDevice = vk::raii::Device(m_physicalDevice, deviceCreateInfo);
-    m_graphicsQueue = vk::raii::Queue( m_logicalDevice, queueIndex, 0 );
+    m_graphicsComputeQueue = vk::raii::Queue( m_logicalDevice, m_graphicsComputeQueueIndex, 0 );
 }
 
 void Renderer::SelectPhysicalDevice() {
@@ -1060,8 +1171,8 @@ bool Renderer::IsDeviceSuitable(const vk::raii::PhysicalDevice& physicalDevice) 
     bool supportsVulkan1_3 = physicalDevice.getProperties().apiVersion >= vk::ApiVersion13;
 
     // Check if any of the queue families support graphics operations
-    auto queueFamilies = physicalDevice.getQueueFamilyProperties();
-    bool supportsGraphics = std::ranges::any_of( queueFamilies, []( auto const & qfp ) { return !!( qfp.queueFlags & vk::QueueFlagBits::eGraphics ); } );
+    auto queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
+    bool supportsGraphicsAndCompute = std::ranges::any_of( queueFamilyProperties, []( auto const & qfp ) { return !!( (qfp.queueFlags & vk::QueueFlagBits::eGraphics) && (qfp.queueFlags & vk::QueueFlagBits::eCompute)); } );
 
     // Check if all required physicalDevice extensions are available
     auto availableDeviceExtensions = physicalDevice.enumerateDeviceExtensionProperties();
@@ -1089,7 +1200,7 @@ bool Renderer::IsDeviceSuitable(const vk::raii::PhysicalDevice& physicalDevice) 
                                     features.template get<vk::PhysicalDeviceFeatures2>().features.sampleRateShading;
 
     // Return true if the physicalDevice meets all the criteria
-    return supportsVulkan1_3 && supportsGraphics && supportsAllRequiredExtensions && supportsRequiredFeatures;
+    return supportsVulkan1_3 && supportsGraphicsAndCompute && supportsAllRequiredExtensions && supportsRequiredFeatures;
 }
 
 void Renderer::SetupDebugMessenger()
