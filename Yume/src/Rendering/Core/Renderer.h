@@ -287,5 +287,8 @@ private:
 
     vk::raii::Fence m_fence = nullptr;
     vk::raii::Semaphore m_imageAvailableSemaphore = nullptr;
+
+    double m_lastFrameTime = 0.0f;
+    double m_lastTime;
 };
 }

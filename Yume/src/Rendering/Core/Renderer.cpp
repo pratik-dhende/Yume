@@ -4,7 +4,6 @@
 #include <cassert>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <chrono>
 #include <stb_image.h>
 #include <random>
 #include <ctime>
@@ -151,6 +150,7 @@ void Renderer::OnEvent(const Event& event) {
 void Renderer::Init() {
     ServiceLocator::GetService<EventBus>().AddListener(this, static_cast<int>(EventCategory::Window));
     InitVulkan();
+    m_lastTime = glfwGetTime();
 }
 
 uint32_t Renderer::FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) {
@@ -224,6 +224,7 @@ void Renderer::CreateUniformBuffers() {
 
 void Renderer::UpdateUniformBuffer(const int frameIndex) {
     UniformBufferObject ubo{};
+    ubo.deltaTime = static_cast<float>(m_lastFrameTime) * 2.0f;
     memcpy(m_uniformBuffersMapped[m_frameIndex], &ubo, sizeof(ubo));
 }
 
@@ -873,6 +874,9 @@ void Renderer::DrawFrame() {
 
         m_frameIndex = (m_frameIndex + 1) % s_maxFramesInFlight;
     }
+    auto currentTime = glfwGetTime();
+    m_lastFrameTime = (currentTime - m_lastTime) * 1000.0;
+    m_lastTime = currentTime;
 }
 
 void Renderer::RecordGraphicsCommandBuffer(const uint32_t imageIndex) {
